@@ -189,8 +189,11 @@ def feature_select():
     """
     Auto feature selection via PyImpetus (PIMP) with sklearn RF fallback.
     Body: { "target_column": "diagnosis" }
-    Returns: { method, all_features, selected, importances }
+    Returns: { method, target_column, all_features, selected, importances }
     """
+    if not HAS_SKLEARN:
+        return jsonify({"error": "scikit-learn is not installed. Run: pip install scikit-learn"}), 500
+
     body = request.json or {}
     target_col = body.get("target_column", "")
 

@@ -1,0 +1,15 @@
+# MedML Forge — ML Worker dependencies
+flask>=2.3
+flask-cors>=4.0
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+torch>=2.0          # CPU build is fine; install GPU build separately if available
+Pillow>=10.0        # image dataset support
+openpyxl>=3.1       # .xlsx support
+pyarrow>=14.0       # .parquet support
+
+# Feature selection (auto-selection mode in Configure stage)
+# PyImpetus uses permutation-based statistical testing to find genuinely
+# predictive features. Falls back to Random Forest importance if missing.
+PyImpetus>=2.2
