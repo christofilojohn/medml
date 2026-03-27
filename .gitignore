@@ -1,0 +1,6 @@
+.env.example
+.gitattributes
+.llm.log
+.ml-worker.log
+.ui.log
+/frontend/node_modules

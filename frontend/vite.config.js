@@ -1,0 +1,18 @@
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    proxy: {
+      '/scan': 'http://127.0.0.1:8081',
+      '/train': 'http://127.0.0.1:8081',
+      '/dataset': 'http://127.0.0.1:8081',
+      '/cleanup': 'http://127.0.0.1:8081',
+      '/reason': 'http://127.0.0.1:8081',
+      '/health': 'http://127.0.0.1:8081',
+      '/v1': 'http://127.0.0.1:8080',
+    }
+  }
+})
