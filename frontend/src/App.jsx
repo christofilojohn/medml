@@ -12,12 +12,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 const ML_API = '' // proxied through vite dev server
 
 const STAGES = [
-  { id: 'scan',    icon: '⬡', label: 'Data Scan',    desc: 'Point to your local data directory' },
-  { id: 'preview', icon: '◈', label: 'Data Preview',  desc: 'Inspect and understand your dataset' },
-  { id: 'clean',   icon: '◇', label: 'Cleanup',       desc: 'Fix quality issues' },
-  { id: 'config',  icon: '⬢', label: 'Configure',     desc: 'Model & training settings' },
-  { id: 'train',   icon: '△', label: 'Training',      desc: 'On-device model training' },
-  { id: 'eval',    icon: '○', label: 'Evaluate',      desc: 'Performance assessment' },
+  { id: 'scan',    icon: 'biotech',                  label: 'Scan',      desc: 'Point to your local data directory' },
+  { id: 'preview', icon: 'visibility',               label: 'Preview',   desc: 'Inspect and understand your dataset' },
+  { id: 'clean',   icon: 'cleaning_services',        label: 'Cleanup',   desc: 'Fix quality issues' },
+  { id: 'config',  icon: 'settings_input_component', label: 'Configure', desc: 'Model & training settings' },
+  { id: 'train',   icon: 'model_training',           label: 'Training',  desc: 'On-device model training' },
+  { id: 'eval',    icon: 'analytics',                label: 'Evaluate',  desc: 'Performance assessment' },
 ]
 
 // ── Tiny chart component ────────────────────────────────────
@@ -356,386 +356,419 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────
   return (
-    <div style={{
-      fontFamily: "'DM Sans', system-ui, sans-serif",
-      background: '#f0f4f8', color: '#1e293b', minHeight: '100vh',
-      display: 'flex', flexDirection: 'column',
-    }}>
-      <style>{`
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        input:focus, textarea:focus, select:focus { outline: none; border-color: #10b981 !important; }
-        select { appearance: auto; background: #ffffff; color: #1e293b; }
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
-        .fade-up { animation: fadeUp 0.4s ease both; }
-      `}</style>
+    <div className="font-body text-on-surface min-h-screen bg-surface">
 
-      {/* ═══ HEADER ═══ */}
-      <header style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '12px 24px', borderBottom: '1px solid #e2e8f0', background: '#ffffff',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'linear-gradient(135deg, #10b981, #6366f1)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 15, fontWeight: 700, color: '#fff',
-          }}>M</div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em' }}>MedML Forge</div>
-            <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-              On-Device Clinical AI Pipeline
-            </div>
-          </div>
+      {/* ═══ SIDEBAR ═══ */}
+      <aside className="fixed left-0 top-0 h-screen flex flex-col py-8 gap-2 bg-slate-50 border-r border-slate-200/50 w-64 z-50">
+        <div className="px-6 mb-6">
+          <h2 className="font-body text-xs font-black uppercase tracking-widest text-primary">PIPELINE</h2>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 11 }}>
-          <span style={{
-            display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px',
-            borderRadius: 6, background: backend.online ? '#d1fae5' : '#fee2e2',
-            color: backend.online ? '#065f46' : '#991b1b',
-          }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: backend.online ? '#10b981' : '#ef4444',
-            }} />
-            {backend.online ? backend.device : 'Offline'}
-          </span>
-          <span style={{ padding: '4px 10px', borderRadius: 6, background: '#e2e8f0', color: '#475569' }}>
-            🔒 LOCAL
-          </span>
-        </div>
-      </header>
-
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-        {/* ═══ LEFT RAIL — PIPELINE PROGRESS ═══ */}
-        <nav style={{
-          width: 220, flexShrink: 0, background: '#f1f5f9',
-          borderRight: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column',
-          padding: '20px 0',
-        }}>
-          <div style={{
-            fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em',
-            color: '#94a3b8', padding: '0 16px', marginBottom: 12, fontWeight: 600,
-          }}>Pipeline</div>
-
+        <nav className="flex-1 flex flex-col gap-1">
           {STAGES.map((s, i) => {
             const active = i === stage
             const done = completed.has(i)
             const locked = i > stage + 1 && !done
             return (
-              <div key={s.id}
+              <button key={s.id}
                 onClick={() => !locked && setStage(i)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '10px 16px', cursor: locked ? 'default' : 'pointer',
-                  borderLeft: active ? '2px solid #10b981' : '2px solid transparent',
-                  background: active ? '#ecfdf5' : 'transparent',
-                  opacity: locked ? 0.3 : 1,
-                  transition: 'all 0.15s',
-                }}
+                className={`flex items-center px-4 py-3 mx-2 rounded-md text-left transition-all duration-200 ${
+                  active
+                    ? 'bg-primary text-white shadow-sm'
+                    : locked
+                    ? 'text-slate-300 cursor-default'
+                    : 'text-slate-600 hover:translate-x-1 cursor-pointer'
+                }`}
               >
-                <div style={{
-                  width: 26, height: 26, borderRadius: 6,
-                  background: done ? '#d1fae5' : active ? '#e2e8f0' : '#ffffff',
-                  border: `1px solid ${done ? '#6ee7b7' : active ? '#cbd5e1' : '#e2e8f0'}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, color: done ? '#10b981' : active ? '#1e293b' : '#64748b',
-                  fontWeight: 600,
-                }}>
-                  {done ? '✓' : s.icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: active ? 600 : 400, color: active ? '#10b981' : done ? '#64748b' : '#94a3b8' }}>
-                    {s.label}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{s.desc}</div>
-                </div>
-              </div>
+                <span className="material-symbols-outlined mr-3 text-xl">
+                  {done && !active ? 'check_circle' : s.icon}
+                </span>
+                <span className="font-body text-sm font-medium uppercase tracking-widest">{s.label}</span>
+              </button>
             )
           })}
-
-          {/* Overall progress bar */}
-          <div style={{ marginTop: 'auto', padding: '16px' }}>
-            <div style={{ fontSize: 10, color: '#94a3b8', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Progress
-            </div>
-            <div style={{ height: 4, borderRadius: 2, background: '#e2e8f0', overflow: 'hidden' }}>
-              <div style={{
-                height: '100%', borderRadius: 2,
-                background: 'linear-gradient(90deg, #10b981, #6366f1)',
-                width: `${(completed.size / STAGES.length) * 100}%`,
-                transition: 'width 0.5s ease',
-              }} />
-            </div>
-            <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
-              {completed.size}/{STAGES.length} stages
-            </div>
-          </div>
         </nav>
+        <div className="px-6 pt-4 border-t border-slate-200/50">
+          <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Progress</p>
+          <div className="h-1 bg-surface-container rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${(completed.size / STAGES.length) * 100}%` }} />
+          </div>
+          <p className="text-xs text-on-surface-variant mt-2">{completed.size}/{STAGES.length} stages</p>
+        </div>
+      </aside>
+
+      <div className="ml-64 min-h-screen flex flex-col">
+
+        {/* ═══ HEADER ═══ */}
+        <header className="sticky top-0 z-40 bg-slate-50 flex justify-between items-center w-full px-8 py-4 border-b border-slate-200/50">
+          <div className="flex items-center gap-3">
+            <span className="material-symbols-outlined text-primary">lock</span>
+            <h1 className="font-headline font-bold tracking-tight text-xl text-primary">MedML Forge</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="px-3 py-1 bg-surface-container rounded-full flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${backend.online ? 'bg-tertiary-fixed-dim' : 'bg-error'}`}
+                style={backend.online ? { boxShadow: '0 0 8px rgba(136,217,130,0.6)' } : {}} />
+              <span className="font-label text-xs font-bold tracking-wider text-primary">
+                {backend.online ? (backend.device?.toUpperCase() || 'LOCAL') : 'OFFLINE'}
+              </span>
+            </div>
+            <button className="material-symbols-outlined text-slate-500 hover:text-primary transition-colors">account_circle</button>
+          </div>
+        </header>
 
         {/* ═══ MAIN WORKSPACE ═══ */}
-        <main style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div className="flex flex-1 overflow-hidden">
 
           {/* ── Center panel: stage content ─── */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '24px 32px' }}>
+          <div className="flex-1 overflow-y-auto p-8 bg-surface">
+            <div className="max-w-4xl mx-auto space-y-8">
 
-            {/* STAGE 0: SCAN */}
-            {stage === 0 && (
-              <div className="fade-up">
-                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Point to your data</h2>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-                  Enter the path to your local dataset. Only metadata leaves this box — never raw patient data.
-                </p>
-
-                <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-                  <input
-                    value={dataPath} onChange={e => setDataPath(e.target.value)}
-                    placeholder="/path/to/your/dataset"
-                    style={{
-                      flex: 1, padding: '10px 14px', background: '#ffffff', border: '1px solid #e2e8f0',
-                      borderRadius: 8, color: '#1e293b', fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
-                    }}
-                    onKeyDown={e => e.key === 'Enter' && runScan()}
-                  />
-                  <button
-                    onClick={async () => {
-                      try {
-                        const res = await fetch('http://localhost:8081/pick-folder', { method: 'POST' })
-                        const data = await res.json()
-                        if (data.path) setDataPath(data.path)
-                      } catch {
-                        alert('Could not open folder picker — is the backend running?')
-                      }
-                    }}
-                    style={{
-                      padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0',
-                      background: '#ffffff', color: '#475569', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap',
-                    }}
-                  >
-                    📁 Browse
-                  </button>
-                  <button onClick={runScan} disabled={scanning || !dataPath.trim()} style={{
-                    padding: '10px 20px', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: 13,
-                    background: scanning ? '#e2e8f0' : '#10b981', color: scanning ? '#64748b' : '#fff',
-                    cursor: scanning ? 'wait' : 'pointer',
-                  }}>
-                    {scanning ? '⏳ Scanning...' : '▶ Scan'}
-                  </button>
-                </div>
-
-                <div style={{
-                  background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16,
-                  fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: '#64748b', lineHeight: 1.8,
-                }}>
-                  <div style={{ color: '#94a3b8', marginBottom: 8 }}># What the scanner does locally:</div>
-                  <div style={{ color: '#10b981' }}>→ Counts files, detects formats (CSV, DICOM, PNG...)</div>
-                  <div style={{ color: '#10b981' }}>→ Reads column names & types (tabular)</div>
-                  <div style={{ color: '#10b981' }}>→ Detects class folders & resolution (images)</div>
-                  <div style={{ color: '#10b981' }}>→ Computes distributions, missing %, duplicates</div>
-                  <div style={{ color: '#10b981' }}>→ Generates sample thumbnails (images only)</div>
-                  <div style={{ marginTop: 8, color: '#ef4444' }}>✗ Never reads raw cell values or pixel data</div>
-                  <div style={{ color: '#ef4444' }}>✗ Never uploads anything to any server</div>
-                </div>
-              </div>
-            )}
-
-            {/* STAGE 1: PREVIEW */}
-            {stage === 1 && dataset && (
-              <div className="fade-up">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              {/* STAGE 0: SCAN */}
+              {stage === 0 && (
+                <div className="fade-up space-y-6">
                   <div>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Dataset Preview</h2>
-                    <p style={{ fontSize: 13, color: '#64748b' }}>
-                      {dataset.type === 'tabular' ? `${dataset.summary.total_rows?.toLocaleString()} rows × ${dataset.summary.total_columns} columns` :
-                       dataset.type === 'image' ? `${dataset.summary.total_files?.toLocaleString()} images across ${dataset.summary.num_classes} classes` :
-                       'Dataset loaded'}
+                    <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Data Ingestion</p>
+                    <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Point to Your Data</h2>
+                  </div>
+
+                  <div className="bg-surface-container-low p-8 rounded-xl space-y-6">
+                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4">
+                      <span className="material-symbols-outlined text-primary">folder_open</span>
+                      <h3 className="font-headline text-lg font-bold text-primary">Dataset Location</h3>
+                    </div>
+                    <p className="text-sm text-on-surface-variant">
+                      Enter the path to your local dataset. Only metadata is analyzed — never raw patient data.
                     </p>
+                    <div className="flex gap-3">
+                      <input
+                        value={dataPath} onChange={e => setDataPath(e.target.value)}
+                        placeholder="/path/to/your/dataset"
+                        onKeyDown={e => e.key === 'Enter' && runScan()}
+                        className="flex-1 px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm font-mono focus:outline-none focus:border-primary"
+                      />
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('http://localhost:8081/pick-folder', { method: 'POST' })
+                            const data = await res.json()
+                            if (data.path) setDataPath(data.path)
+                          } catch {
+                            alert('Could not open folder picker — is the backend running?')
+                          }
+                        }}
+                        className="px-4 py-2.5 bg-surface-container-high text-primary font-bold text-sm rounded-lg hover:bg-surface-container-highest transition-colors whitespace-nowrap flex items-center gap-2"
+                      >
+                        <span className="material-symbols-outlined text-base">folder</span>
+                        Browse
+                      </button>
+                      <button onClick={runScan} disabled={scanning || !dataPath.trim()}
+                        className={`px-6 py-2.5 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
+                          scanning || !dataPath.trim()
+                            ? 'bg-surface-container text-on-surface-variant cursor-not-allowed'
+                            : 'bg-primary text-on-primary hover:opacity-90 shadow-lg'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-base">
+                          {scanning ? 'hourglass_empty' : 'play_arrow'}
+                        </span>
+                        {scanning ? 'Scanning...' : 'Scan'}
+                      </button>
+                    </div>
+
+                    <div className="bg-surface p-5 rounded-lg border-l-4 border-primary font-mono text-xs text-on-surface-variant leading-relaxed space-y-1">
+                      <p className="text-outline mb-2"># What the scanner does locally:</p>
+                      <p className="text-on-tertiary-container">→ Counts files, detects formats (CSV, DICOM, PNG...)</p>
+                      <p className="text-on-tertiary-container">→ Reads column names &amp; types (tabular)</p>
+                      <p className="text-on-tertiary-container">→ Detects class folders &amp; resolution (images)</p>
+                      <p className="text-on-tertiary-container">→ Computes distributions, missing %, duplicates</p>
+                      <p className="text-on-tertiary-container">→ Generates sample thumbnails (images only)</p>
+                      <p className="text-error mt-2">✗ Never reads raw cell values or pixel data</p>
+                      <p className="text-error">✗ Never uploads anything to any server</p>
+                    </div>
                   </div>
-                  <button onClick={goNext} style={{
-                    padding: '8px 16px', borderRadius: 8, border: 'none', background: '#10b981',
-                    color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  }}>Continue →</button>
                 </div>
+              )}
 
-                {/* Metrics row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10, marginBottom: 20 }}>
-                  {dataset.type === 'tabular' ? <>
-                    <MetricBox label="Rows" value={dataset.summary.total_rows?.toLocaleString()} />
-                    <MetricBox label="Columns" value={dataset.summary.total_columns} />
-                    <MetricBox label="Missing" value={`${dataset.summary.missing_pct}%`} color={dataset.summary.missing_pct > 5 ? '#f59e0b' : '#10b981'} />
-                    <MetricBox label="Duplicates" value={dataset.summary.duplicates} color={dataset.summary.duplicates > 0 ? '#ef4444' : '#10b981'} />
-                    <MetricBox label="Numeric" value={dataset.summary.dtypes?.numeric} />
-                    <MetricBox label="Categorical" value={dataset.summary.dtypes?.categorical} />
-                  </> : <>
-                    <MetricBox label="Images" value={dataset.summary.total_files?.toLocaleString()} />
-                    <MetricBox label="Classes" value={dataset.summary.num_classes} />
-                    <MetricBox label="Avg Resolution" value={dataset.summary.avg_resolution} />
-                    <MetricBox label="Corrupted" value={dataset.summary.corrupted} color={dataset.summary.corrupted > 0 ? '#ef4444' : '#10b981'} />
-                  </>}
+              {/* STAGE 1: PREVIEW */}
+              {stage === 1 && dataset && (
+                <div className="fade-up space-y-6">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Data Inspection</p>
+                      <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Dataset Preview</h2>
+                      <p className="text-sm text-on-surface-variant mt-1">
+                        {dataset.type === 'tabular'
+                          ? `${dataset.summary.total_rows?.toLocaleString()} rows × ${dataset.summary.total_columns} columns`
+                          : dataset.type === 'image'
+                          ? `${dataset.summary.total_files?.toLocaleString()} images across ${dataset.summary.num_classes} classes`
+                          : 'Dataset loaded'}
+                      </p>
+                    </div>
+                    <button onClick={goNext}
+                      className="px-6 py-2 bg-primary text-on-primary font-bold text-sm rounded-md hover:opacity-90 transition-all flex items-center gap-2">
+                      Continue
+                      <span className="material-symbols-outlined text-base">arrow_forward</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {dataset.type === 'tabular' ? <>
+                      <MetricBox label="Rows" value={dataset.summary.total_rows?.toLocaleString()} />
+                      <MetricBox label="Columns" value={dataset.summary.total_columns} />
+                      <MetricBox label="Missing" value={`${dataset.summary.missing_pct}%`} warn={dataset.summary.missing_pct > 5} />
+                      <MetricBox label="Duplicates" value={dataset.summary.duplicates} warn={dataset.summary.duplicates > 0} />
+                      <MetricBox label="Numeric" value={dataset.summary.dtypes?.numeric} />
+                      <MetricBox label="Categorical" value={dataset.summary.dtypes?.categorical} />
+                    </> : <>
+                      <MetricBox label="Images" value={dataset.summary.total_files?.toLocaleString()} />
+                      <MetricBox label="Classes" value={dataset.summary.num_classes} />
+                      <MetricBox label="Avg Resolution" value={dataset.summary.avg_resolution} />
+                      <MetricBox label="Corrupted" value={dataset.summary.corrupted} warn={dataset.summary.corrupted > 0} />
+                    </>}
+                  </div>
+
+                  {dataset.type === 'tabular' && dataset.preview && (
+                    <div className="bg-surface-container-low p-6 rounded-xl">
+                      <h3 className="font-headline font-bold text-primary text-sm mb-4 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">table</span>
+                        Data Sample
+                      </h3>
+                      <DataTable columns={dataset.preview.columns} rows={dataset.preview.rows} />
+                    </div>
+                  )}
+
+                  {dataset.type === 'tabular' && dataset.columns && (
+                    <div className="bg-surface-container-low p-6 rounded-xl">
+                      <h3 className="font-headline font-bold text-primary text-sm mb-4 flex items-center gap-2">
+                        <span className="material-symbols-outlined text-sm">schema</span>
+                        Column Inspector
+                      </h3>
+                      <ColumnInspector columns={dataset.columns} />
+                    </div>
+                  )}
+
+                  {dataset.type === 'image' && dataset.preview && (
+                    <div className="bg-surface-container-low p-6 rounded-xl">
+                      <h3 className="font-headline font-bold text-primary text-sm mb-4">Class Samples</h3>
+                      <ImageGrid images={dataset.preview} />
+                    </div>
+                  )}
+
+                  {dataset.type === 'image' && dataset.summary.classes && (
+                    <div className="bg-surface-container-low p-6 rounded-xl">
+                      <h3 className="font-headline font-bold text-primary text-sm mb-4">Class Distribution</h3>
+                      {Object.entries(dataset.summary.classes).map(([cls, cnt]) => {
+                        const pct = (cnt / dataset.summary.total_files * 100)
+                        return (
+                          <div key={cls} className="mb-4">
+                            <div className="flex justify-between text-xs text-on-surface-variant mb-1">
+                              <span>{cls}</span>
+                              <span className="font-mono">{cnt.toLocaleString()} ({pct.toFixed(1)}%)</span>
+                            </div>
+                            <div className="h-1 bg-surface-container rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full transition-all duration-500"
+                                style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
+              )}
 
-                {/* Tabular preview */}
-                {dataset.type === 'tabular' && dataset.preview && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#64748b' }}>Data Sample</div>
-                    <DataTable columns={dataset.preview.columns} rows={dataset.preview.rows} />
-                  </div>
-                )}
-
-                {/* Column inspector */}
-                {dataset.type === 'tabular' && dataset.columns && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#64748b' }}>Column Inspector</div>
-                    <ColumnInspector columns={dataset.columns} />
-                  </div>
-                )}
-
-                {/* Image preview */}
-                {dataset.type === 'image' && dataset.preview && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#64748b' }}>Class Samples</div>
-                    <ImageGrid images={dataset.preview} />
-                  </div>
-                )}
-
-                {/* Class distribution for images */}
-                {dataset.type === 'image' && dataset.summary.classes && (
+              {/* STAGE 2: CLEANUP */}
+              {stage === 2 && (
+                <div className="fade-up space-y-6">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#64748b' }}>Class Distribution</div>
-                    {Object.entries(dataset.summary.classes).map(([cls, cnt]) => {
-                      const pct = (cnt / dataset.summary.total_files * 100)
-                      return (
-                        <div key={cls} style={{ marginBottom: 6 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#64748b', marginBottom: 3 }}>
-                            <span>{cls}</span>
-                            <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{cnt.toLocaleString()} ({pct.toFixed(1)}%)</span>
+                    <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Quality Assurance</p>
+                    <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Data Cleanup</h2>
+                  </div>
+
+                  <div className="bg-surface-container-low p-8 rounded-xl space-y-6">
+                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4">
+                      <span className="material-symbols-outlined text-primary">cleaning_services</span>
+                      <h3 className="font-headline text-lg font-bold text-primary">Cleanup Actions</h3>
+                    </div>
+                    <p className="text-sm text-on-surface-variant">Fix data quality issues before training. The AI agent will recommend specific actions.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {['Remove duplicates', 'Impute missing values', 'Cap outliers (3σ)', 'Remove corrupted files'].map((action, i) => (
+                        <div key={i} className="bg-surface-container-lowest p-4 rounded-xl flex items-center gap-3 border border-outline-variant/20">
+                          <div className="w-8 h-8 rounded bg-tertiary-fixed/30 flex items-center justify-center">
+                            <span className="material-symbols-outlined text-on-tertiary-fixed-variant text-base">check</span>
                           </div>
-                          <div style={{ height: 4, borderRadius: 2, background: '#e2e8f0' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, borderRadius: 2, background: '#10b981', transition: 'width 0.5s' }} />
-                          </div>
+                          <span className="text-sm text-on-surface">{action}</span>
                         </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* STAGE 2: CLEANUP */}
-            {stage === 2 && (
-              <div className="fade-up">
-                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Data Cleanup</h2>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-                  Fix data quality issues before training. The AI agent will recommend specific actions.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-                  {['Remove duplicates', 'Impute missing values', 'Cap outliers (3σ)', 'Remove corrupted files'].map((action, i) => (
-                    <div key={i} style={{
-                      padding: '12px 16px', background: '#ffffff', borderRadius: 8,
-                      border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 10,
-                    }}>
-                      <div style={{
-                        width: 18, height: 18, borderRadius: 4, background: '#d1fae5',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, color: '#10b981',
-                      }}>✓</div>
-                      <span style={{ fontSize: 13 }}>{action}</span>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                {cleanupResult && (
-                  <div style={{ background: '#ffffff', borderRadius: 8, border: '1px solid #e2e8f0', padding: 16, marginBottom: 16 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Cleanup Results</div>
-                    {cleanupResult.actions_taken?.map((a, i) => (
-                      <div key={i} style={{ fontSize: 12, color: '#10b981', marginBottom: 4 }}>✓ {a}</div>
-                    ))}
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>
-                      {cleanupResult.rows_before?.toLocaleString()} → {cleanupResult.rows_after?.toLocaleString()} entries
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={runCleanup} style={{
-                    padding: '10px 20px', borderRadius: 8, border: 'none', background: '#10b981',
-                    color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  }}>Run Cleanup</button>
-                  <button onClick={goNext} style={{
-                    padding: '10px 20px', borderRadius: 8, border: '1px solid #e2e8f0', background: 'transparent',
-                    color: '#64748b', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  }}>Skip →</button>
-                </div>
-              </div>
-            )}
-
-            {/* STAGE 3: CONFIGURE */}
-            {stage === 3 && (
-              <div className="fade-up">
-                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Training Configuration</h2>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-                  Configure your model, select features, and set training parameters.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                  <ConfigField label="Target Column" value={trainConfig.target_column}
-                    onChange={v => setTrainConfig(c => ({ ...c, target_column: v }))}
-                    options={scanResult?.summary?.target_candidates}
-                    placeholder="auto-detect" />
-                  <ConfigField label="Model Type" value={trainConfig.model_type}
-                    onChange={v => setTrainConfig(c => ({ ...c, model_type: v }))}
-                    options={['auto', 'mlp', 'cnn', 'resnet', 'logistic']} />
-                  <ConfigField label="Epochs" value={trainConfig.epochs} type="number"
-                    onChange={v => setTrainConfig(c => ({ ...c, epochs: parseInt(v) || 50 }))} />
-                  <ConfigField label="Learning Rate" value={trainConfig.lr} type="number" step="0.0001"
-                    onChange={v => setTrainConfig(c => ({ ...c, lr: parseFloat(v) || 0.001 }))} />
-                  <ConfigField label="Batch Size" value={trainConfig.batch_size} type="number"
-                    onChange={v => setTrainConfig(c => ({ ...c, batch_size: parseInt(v) || 32 }))} />
-                </div>
-
-                {/* ── Feature Selection ─────────────────────── */}
-                {dataset?.type === 'tabular' && dataset?.columns?.length > 0 && (
-                  <div style={{ marginBottom: 24, border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
-                    {/* Header row */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0',
-                    }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>Feature Selection
-                        {selectedFeatures.length > 0 && (
-                          <span style={{ marginLeft: 8, fontSize: 11, color: '#10b981', fontWeight: 400 }}>
-                            {selectedFeatures.length} selected
-                          </span>
-                        )}
-                      </div>
-                      {/* Mode toggle */}
-                      <div style={{ display: 'flex', gap: 4, background: '#e2e8f0', borderRadius: 6, padding: 3 }}>
-                        {['manual', 'auto'].map(m => (
-                          <button key={m} onClick={() => setFeatureMode(m)} style={{
-                            padding: '4px 12px', borderRadius: 4, border: 'none', fontSize: 12, fontWeight: 600,
-                            cursor: 'pointer',
-                            background: featureMode === m ? '#ffffff' : 'transparent',
-                            color: featureMode === m ? '#0f172a' : '#64748b',
-                            boxShadow: featureMode === m ? '0 1px 3px #0001' : 'none',
-                          }}>
-                            {m === 'auto' ? '⚡ Auto (AI)' : '✋ Manual'}
-                          </button>
+                    {cleanupResult && (
+                      <div className="bg-surface p-5 rounded-lg border-l-4 border-on-tertiary-fixed-variant">
+                        <p className="font-headline font-bold text-primary text-sm mb-3">Cleanup Results</p>
+                        {cleanupResult.actions_taken?.map((a, i) => (
+                          <p key={i} className="text-xs text-on-tertiary-fixed-variant mb-1">✓ {a}</p>
                         ))}
+                        <p className="text-xs text-on-surface-variant mt-3">
+                          {cleanupResult.rows_before?.toLocaleString()} → {cleanupResult.rows_after?.toLocaleString()} entries
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 pt-2">
+                      <button onClick={runCleanup}
+                        className="px-6 py-2 bg-primary text-on-primary font-bold text-sm rounded-md hover:opacity-90 transition-all flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">play_arrow</span>
+                        Run Cleanup
+                      </button>
+                      <button onClick={goNext}
+                        className="px-6 py-2 bg-surface-container-high text-primary font-bold text-sm rounded-md hover:bg-surface-container-highest transition-colors">
+                        Skip →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STAGE 3: CONFIGURE */}
+              {stage === 3 && (
+                <div className="fade-up space-y-6">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Configuration Engine</p>
+                      <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Hyperparameter Calibration</h2>
+                    </div>
+                    <div className="flex gap-3">
+                      <button onClick={() => setTrainConfig({ epochs: 50, lr: 0.001, batch_size: 32, model_type: 'auto', target_column: '' })}
+                        className="px-5 py-2 bg-surface-container-high text-primary font-bold text-sm rounded-md hover:bg-surface-container-highest transition-colors">
+                        RESET DEFAULTS
+                      </button>
+                      <button onClick={() => { completeStage(3); startTraining() }}
+                        className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-md shadow-lg hover:opacity-90 transition-all flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">play_arrow</span>
+                        INITIALIZE ENGINE
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Core sliders */}
+                  <div className="bg-surface-container-low p-8 rounded-xl space-y-8">
+                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4">
+                      <span className="material-symbols-outlined text-primary">tune</span>
+                      <h3 className="font-headline text-lg font-bold text-primary">Core Model Sensitivity</h3>
+                    </div>
+
+                    {/* Learning rate */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-baseline">
+                        <label className="font-headline font-bold text-primary text-sm flex items-center gap-2">
+                          Clinical Sensitivity
+                          <span className="font-label text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded tracking-tighter">(LEARNING RATE)</span>
+                        </label>
+                        <span className="font-label font-bold text-primary">{trainConfig.lr}</span>
+                      </div>
+                      <input type="range" className="w-full h-1"
+                        min="0.0001" max="0.1" step="0.0001"
+                        value={trainConfig.lr}
+                        onChange={e => setTrainConfig(c => ({ ...c, lr: parseFloat(e.target.value) }))}
+                      />
+                      <div className="bg-surface p-4 rounded-lg flex items-start gap-3 border-l-4 border-primary">
+                        <span className="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
+                        <p className="text-xs text-on-surface-variant leading-relaxed">Lower sensitivity allows for more stable, long-term pattern recognition. Recommended for longitudinal patient studies.</p>
                       </div>
                     </div>
 
-                    <div style={{ padding: 16 }}>
+                    {/* Epochs */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-baseline">
+                        <label className="font-headline font-bold text-primary text-sm flex items-center gap-2">
+                          Diagnostic Depth
+                          <span className="font-label text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded tracking-tighter">(EPOCHS)</span>
+                        </label>
+                        <span className="font-label font-bold text-primary">{trainConfig.epochs}</span>
+                      </div>
+                      <input type="range" className="w-full h-1"
+                        min="10" max="1000" step="10"
+                        value={trainConfig.epochs}
+                        onChange={e => setTrainConfig(c => ({ ...c, epochs: parseInt(e.target.value) }))}
+                      />
+                      <div className="bg-surface p-4 rounded-lg flex items-start gap-3 border-l-4 border-primary">
+                        <span className="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
+                        <p className="text-xs text-on-surface-variant leading-relaxed">How many times the model reviews each clinical record. Higher depth increases comprehension but risks overfitting to rare cases.</p>
+                      </div>
+                    </div>
+
+                    {/* Batch size */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-baseline">
+                        <label className="font-headline font-bold text-primary text-sm flex items-center gap-2">
+                          Sample Volume
+                          <span className="font-label text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded tracking-tighter">(BATCH SIZE)</span>
+                        </label>
+                        <span className="font-label font-bold text-primary">{trainConfig.batch_size}</span>
+                      </div>
+                      <input type="range" className="w-full h-1"
+                        min="16" max="512" step="16"
+                        value={trainConfig.batch_size}
+                        onChange={e => setTrainConfig(c => ({ ...c, batch_size: parseInt(e.target.value) }))}
+                      />
+                      <div className="bg-surface p-4 rounded-lg flex items-start gap-3 border-l-4 border-primary">
+                        <span className="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
+                        <p className="text-xs text-on-surface-variant leading-relaxed">Number of records analyzed simultaneously for each step. Balances computational load with training smoothness.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Model + target selects */}
+                  <div className="bg-surface-container-low p-8 rounded-xl">
+                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4 mb-6">
+                      <span className="material-symbols-outlined text-primary">settings</span>
+                      <h3 className="font-headline text-lg font-bold text-primary">Model Parameters</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <ConfigField label="Target Column" value={trainConfig.target_column}
+                        onChange={v => setTrainConfig(c => ({ ...c, target_column: v }))}
+                        options={scanResult?.summary?.target_candidates}
+                        placeholder="auto-detect" />
+                      <ConfigField label="Model Type" value={trainConfig.model_type}
+                        onChange={v => setTrainConfig(c => ({ ...c, model_type: v }))}
+                        options={['auto', 'mlp', 'cnn', 'resnet', 'logistic']} />
+                    </div>
+                  </div>
+
+                  {/* Feature Selection */}
+                  {dataset?.type === 'tabular' && dataset?.columns?.length > 0 && (
+                    <div className="bg-surface-container-low p-8 rounded-xl">
+                      <div className="flex items-center justify-between border-b border-outline-variant/20 pb-4 mb-6">
+                        <div className="flex items-center gap-3">
+                          <span className="material-symbols-outlined text-secondary">account_tree</span>
+                          <h3 className="font-headline text-lg font-bold text-primary">
+                            Explainable Selection
+                            {selectedFeatures.length > 0 && (
+                              <span className="ml-2 text-sm text-secondary font-normal">{selectedFeatures.length} selected</span>
+                            )}
+                          </h3>
+                        </div>
+                        <div className="flex gap-1 bg-surface-container rounded-lg p-1">
+                          {['manual', 'auto'].map(m => (
+                            <button key={m} onClick={() => setFeatureMode(m)}
+                              className={`px-3 py-1.5 rounded text-xs font-bold transition-all ${
+                                featureMode === m
+                                  ? 'bg-surface-container-lowest text-on-surface shadow-sm'
+                                  : 'text-on-surface-variant'
+                              }`}>
+                              {m === 'auto' ? 'Auto (AI)' : 'Manual'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
                       {featureMode === 'auto' ? (
-                        <div>
-                          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+                        <div className="space-y-4">
+                          <p className="text-xs text-on-surface-variant">
                             Runs PyImpetus (PIMP) statistical importance testing, falling back to Random Forest if not installed.
-                          </div>
+                          </p>
                           <button
                             disabled={autoRunning}
                             onClick={async () => {
@@ -753,22 +786,23 @@ export default function App() {
                               } catch(e) { alert('Feature selection failed: ' + e.message) }
                               finally { setAutoRunning(false) }
                             }}
-                            style={{
-                              padding: '8px 16px', borderRadius: 7, border: 'none', fontWeight: 600,
-                              fontSize: 12, cursor: autoRunning ? 'wait' : 'pointer',
-                              background: autoRunning ? '#e2e8f0' : '#6366f1',
-                              color: autoRunning ? '#64748b' : '#fff',
-                              marginBottom: autoFeatures ? 14 : 0,
-                            }}>
-                            {autoRunning ? '⏳ Running...' : '▶ Run Feature Selection'}
+                            className={`px-5 py-2 font-bold text-sm rounded-md flex items-center gap-2 transition-all ${
+                              autoRunning
+                                ? 'bg-surface-container text-on-surface-variant cursor-wait'
+                                : 'bg-secondary text-on-secondary hover:opacity-90'
+                            }`}>
+                            <span className="material-symbols-outlined text-base">
+                              {autoRunning ? 'hourglass_empty' : 'play_arrow'}
+                            </span>
+                            {autoRunning ? 'Running...' : 'Run Feature Selection'}
                           </button>
 
                           {autoFeatures && (
                             <div>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>
+                              <p className="text-xs text-on-surface-variant mb-3">
                                 Method: <strong>{autoFeatures.method}</strong> · {autoFeatures.selected.length}/{autoFeatures.all_features.length} features selected
-                              </div>
-                              <div style={{ display: 'grid', gap: 5, maxHeight: 260, overflowY: 'auto' }}>
+                              </p>
+                              <div className="space-y-2 max-h-64 overflow-y-auto">
                                 {autoFeatures.all_features.map(feat => {
                                   const imp = autoFeatures.importances[feat] || 0
                                   const maxImp = Math.max(...Object.values(autoFeatures.importances))
@@ -776,21 +810,18 @@ export default function App() {
                                   return (
                                     <div key={feat} onClick={() => setSelectedFeatures(prev =>
                                       prev.includes(feat) ? prev.filter(f => f !== feat) : [...prev, feat]
-                                    )} style={{
-                                      display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px',
-                                      borderRadius: 6, cursor: 'pointer',
-                                      border: `1px solid ${isSelected ? '#10b981' : '#e2e8f0'}`,
-                                      background: isSelected ? '#f0fdf4' : '#fafafa',
-                                    }}>
-                                      <input type="checkbox" readOnly checked={isSelected}
-                                        style={{ accentColor: '#10b981', cursor: 'pointer' }} />
-                                      <span style={{ fontSize: 12, fontFamily: 'monospace', flex: 1, color: '#1e293b' }}>{feat}</span>
-                                      <div style={{ width: 80, height: 6, background: '#e2e8f0', borderRadius: 3, overflow: 'hidden' }}>
-                                        <div style={{ width: `${(imp / maxImp) * 100}%`, height: '100%', background: '#10b981', borderRadius: 3 }} />
+                                    )} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
+                                      isSelected
+                                        ? 'border-on-tertiary-fixed-variant bg-tertiary-fixed/10'
+                                        : 'border-outline-variant/30 bg-surface-container-lowest'
+                                    }`}>
+                                      <input type="checkbox" readOnly checked={isSelected} className="rounded" />
+                                      <span className="text-xs font-mono flex-1 text-on-surface">{feat}</span>
+                                      <div className="w-20 h-1.5 bg-surface-container rounded-full overflow-hidden">
+                                        <div className="h-full bg-on-tertiary-fixed-variant rounded-full"
+                                          style={{ width: `${(imp / maxImp) * 100}%` }} />
                                       </div>
-                                      <span style={{ fontSize: 10, color: '#64748b', width: 42, textAlign: 'right', fontFamily: 'monospace' }}>
-                                        {imp.toFixed(3)}
-                                      </span>
+                                      <span className="text-[10px] text-on-surface-variant font-mono w-10 text-right">{imp.toFixed(3)}</span>
                                     </div>
                                   )
                                 })}
@@ -799,47 +830,44 @@ export default function App() {
                           )}
                         </div>
                       ) : (
-                        /* Manual mode — checkbox list of all columns */
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            <div style={{ fontSize: 12, color: '#64748b' }}>Check the features to include in training.</div>
-                            <div style={{ display: 'flex', gap: 8 }}>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-on-surface-variant">Select features to include in training.</p>
+                            <div className="flex gap-2">
                               <button onClick={() => setSelectedFeatures(
                                 dataset.columns.filter(c => c.name !== trainConfig.target_column).map(c => c.name)
-                              )} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer' }}>
+                              )} className="text-xs px-3 py-1 rounded border border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container transition-colors">
                                 All
                               </button>
                               <button onClick={() => setSelectedFeatures([])}
-                                style={{ fontSize: 11, padding: '3px 8px', borderRadius: 4, border: '1px solid #e2e8f0', background: '#fff', color: '#475569', cursor: 'pointer' }}>
+                                className="text-xs px-3 py-1 rounded border border-outline-variant/40 bg-surface-container-lowest text-on-surface-variant hover:bg-surface-container transition-colors">
                                 None
                               </button>
                             </div>
                           </div>
-                          <div style={{ display: 'grid', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+                          <div className="space-y-1.5 max-h-64 overflow-y-auto">
                             {dataset.columns
                               .filter(c => c.name !== trainConfig.target_column)
                               .map(col => {
                                 const allCols = dataset.columns.filter(c => c.name !== trainConfig.target_column).map(c => c.name)
                                 const isSelected = selectedFeatures.length === 0 || selectedFeatures.includes(col.name)
+                                const isNumeric = col.dtype?.includes('float') || col.dtype?.includes('int')
                                 return (
                                   <div key={col.name} onClick={() => setSelectedFeatures(prev => {
                                     const cur = prev.length === 0 ? allCols : prev
                                     return cur.includes(col.name) ? cur.filter(f => f !== col.name) : [...cur, col.name]
-                                  })} style={{
-                                    display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px',
-                                    borderRadius: 6, cursor: 'pointer',
-                                    border: `1px solid ${isSelected ? '#6366f1' : '#e2e8f0'}`,
-                                    background: isSelected ? '#eef2ff' : '#fafafa',
-                                  }}>
-                                    <input type="checkbox" readOnly checked={isSelected}
-                                      style={{ accentColor: '#6366f1', cursor: 'pointer' }} />
-                                    <span style={{ fontSize: 12, fontFamily: 'monospace', flex: 1, color: '#1e293b' }}>{col.name}</span>
-                                    <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4,
-                                      background: col.dtype?.includes('float') || col.dtype?.includes('int') ? '#d1fae5' : '#e0e7ff',
-                                      color: col.dtype?.includes('float') || col.dtype?.includes('int') ? '#065f46' : '#3730a3',
-                                    }}>{col.dtype}</span>
+                                  })} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
+                                    isSelected
+                                      ? 'border-primary/30 bg-primary-fixed/20'
+                                      : 'border-outline-variant/30 bg-surface-container-lowest'
+                                  }`}>
+                                    <input type="checkbox" readOnly checked={isSelected} className="rounded" />
+                                    <span className="text-xs font-mono flex-1 text-on-surface">{col.name}</span>
+                                    <span className={`text-[10px] px-2 py-0.5 rounded font-label ${
+                                      isNumeric ? 'bg-tertiary-fixed/30 text-on-tertiary-fixed-variant' : 'bg-secondary-fixed text-on-secondary-fixed-variant'
+                                    }`}>{col.dtype}</span>
                                     {col.missing_pct > 0 && (
-                                      <span style={{ fontSize: 10, color: '#f59e0b' }}>{col.missing_pct}% missing</span>
+                                      <span className="text-[10px] text-error">{col.missing_pct}% missing</span>
                                     )}
                                   </div>
                                 )
@@ -848,159 +876,150 @@ export default function App() {
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => {
-                    completeStage(3)
-                    startTraining()
-                  }} style={{
-                    padding: '10px 24px', borderRadius: 8, border: 'none', background: '#10b981',
-                    color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 6,
-                  }}>
-                    ⚡ Start Training
-                  </button>
-                  <button onClick={() => askAI('What model architecture and hyperparameters do you recommend for this dataset?')} style={{
-                    padding: '10px 20px', borderRadius: 8, border: '1px solid #6366f1', background: 'transparent',
-                    color: '#6366f1', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-                  }}>
-                    🧠 Ask AI
-                  </button>
+                  <div className="flex gap-3">
+                    <button onClick={() => askAI('What model architecture and hyperparameters do you recommend for this dataset?')}
+                      className="px-5 py-2 bg-surface-container-high text-primary font-bold text-sm rounded-md hover:bg-surface-container-highest transition-colors flex items-center gap-2">
+                      <span className="material-symbols-outlined text-base">psychology</span>
+                      ASK AI
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* STAGE 4: TRAINING */}
-            {stage === 4 && (
-              <div className="fade-up">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                  <div>
-                    <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Training</h2>
-                    <p style={{ fontSize: 13, color: '#64748b' }}>
-                      {training?.active ? `Epoch ${training.epoch}/${training.total_epochs}` : training?.status === 'complete' ? 'Complete' : 'Starting...'}
-                    </p>
+              {/* STAGE 4: TRAINING */}
+              {stage === 4 && (
+                <div className="fade-up space-y-6">
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">On-Device Computation</p>
+                      <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Training</h2>
+                      <p className="text-sm text-on-surface-variant mt-1">
+                        {training?.active
+                          ? `Epoch ${training.epoch}/${training.total_epochs}`
+                          : training?.status === 'complete' ? 'Complete' : 'Starting...'}
+                      </p>
+                    </div>
+                    {training?.active && (
+                      <button onClick={stopTraining}
+                        className="px-5 py-2 border-2 border-error text-error font-bold text-sm rounded-md hover:bg-error-container transition-colors flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base">stop</span>
+                        Stop
+                      </button>
+                    )}
                   </div>
-                  {training?.active && (
-                    <button onClick={stopTraining} style={{
-                      padding: '8px 16px', borderRadius: 8, border: '1px solid #ef4444', background: 'transparent',
-                      color: '#ef4444', fontWeight: 600, fontSize: 12, cursor: 'pointer',
-                    }}>■ Stop</button>
+
+                  {training && (
+                    <div className="bg-surface-container-low p-6 rounded-xl">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="font-label text-xs uppercase tracking-widest text-on-surface-variant">Epoch Progress</span>
+                        <span className="font-label text-xs font-bold text-primary">
+                          {training.total_epochs > 0 ? `${Math.round((training.epoch / training.total_epochs) * 100)}%` : '0%'}
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${training.total_epochs > 0 ? (training.epoch / training.total_epochs) * 100 : 0}%`,
+                            background: training.active ? '#00193c' : training.status === 'complete' ? '#88d982' : '#ba1a1a',
+                          }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {training?.metrics && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <MetricBox label="Train Loss" value={training.metrics.train_loss?.toFixed(4)} mono />
+                      <MetricBox label="Val Loss" value={training.metrics.val_loss?.toFixed(4)} mono />
+                      <MetricBox label="Accuracy" value={training.metrics.accuracy ? `${(training.metrics.accuracy * 100).toFixed(1)}%` : '—'} mono />
+                      <MetricBox label="F1 Score" value={training.metrics.f1?.toFixed(3)} mono />
+                    </div>
+                  )}
+
+                  {trainHistory.length > 2 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="bg-surface-container-low p-6 rounded-xl">
+                        <MiniChart data={trainHistory.map(h => h.val_loss)} color="#00193c" height={90} label="Validation Loss" />
+                      </div>
+                      <div className="bg-surface-container-low p-6 rounded-xl">
+                        <MiniChart data={trainHistory.map(h => h.accuracy)} color="#7b41b3" height={90} label="Accuracy" />
+                      </div>
+                    </div>
                   )}
                 </div>
+              )}
 
-                {/* Progress */}
-                {training && (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ height: 6, borderRadius: 3, background: '#e2e8f0', overflow: 'hidden' }}>
-                      <div style={{
-                        height: '100%', borderRadius: 3,
-                        background: training.active
-                          ? 'linear-gradient(90deg, #10b981, #34d399)'
-                          : training.status === 'complete' ? '#10b981' : '#ef4444',
-                        width: `${training.total_epochs > 0 ? (training.epoch / training.total_epochs) * 100 : 0}%`,
-                        transition: 'width 0.3s',
-                      }} />
-                    </div>
+              {/* STAGE 5: EVALUATE */}
+              {stage === 5 && training?.metrics && (
+                <div className="fade-up space-y-6">
+                  <div>
+                    <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Performance Assessment</p>
+                    <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Evaluation Results</h2>
+                    <p className="text-sm text-on-surface-variant mt-1">Training complete. Review performance before deciding next steps.</p>
                   </div>
-                )}
 
-                {/* Live metrics */}
-                {training?.metrics && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-                    <MetricBox label="Train Loss" value={training.metrics.train_loss?.toFixed(4)} color="#f59e0b" mono />
-                    <MetricBox label="Val Loss" value={training.metrics.val_loss?.toFixed(4)} color="#10b981" mono />
-                    <MetricBox label="Accuracy" value={training.metrics.accuracy ? `${(training.metrics.accuracy * 100).toFixed(1)}%` : '—'} color="#10b981" mono />
-                    <MetricBox label="F1 Score" value={training.metrics.f1?.toFixed(3)} color="#6366f1" mono />
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <MetricBox label="Final Accuracy" value={`${(training.metrics.accuracy * 100).toFixed(1)}%`} mono large />
+                    <MetricBox label="F1 Score" value={training.metrics.f1?.toFixed(3)} mono large />
+                    <MetricBox label="Train Loss" value={training.metrics.train_loss?.toFixed(4)} mono large />
+                    <MetricBox label="Val Loss" value={training.metrics.val_loss?.toFixed(4)} mono large />
                   </div>
-                )}
 
-                {/* Loss & accuracy charts */}
-                {trainHistory.length > 2 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-                    <div style={{ background: '#ffffff', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
-                      <MiniChart data={trainHistory.map(h => h.val_loss)} color="#10b981" height={90} label="Validation Loss" />
+                  {trainHistory.length > 2 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="bg-surface-container-low p-6 rounded-xl">
+                        <MiniChart data={trainHistory.map(h => h.train_loss)} color="#00193c" height={100} label="Train Loss (full history)" />
+                      </div>
+                      <div className="bg-surface-container-low p-6 rounded-xl">
+                        <MiniChart data={trainHistory.map(h => h.accuracy)} color="#88d982" height={100} label="Accuracy (full history)" />
+                      </div>
                     </div>
-                    <div style={{ background: '#ffffff', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
-                      <MiniChart data={trainHistory.map(h => h.accuracy)} color="#6366f1" height={90} label="Accuracy" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* STAGE 5: EVALUATE */}
-            {stage === 5 && training?.metrics && (
-              <div className="fade-up">
-                <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Evaluation Results</h2>
-                <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-                  Training complete. Review performance before deciding next steps.
-                </p>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 20 }}>
-                  <MetricBox label="Final Accuracy" value={`${(training.metrics.accuracy * 100).toFixed(1)}%`} color="#10b981" mono large />
-                  <MetricBox label="F1 Score" value={training.metrics.f1?.toFixed(3)} color="#6366f1" mono large />
-                  <MetricBox label="Train Loss" value={training.metrics.train_loss?.toFixed(4)} color="#f59e0b" mono large />
-                  <MetricBox label="Val Loss" value={training.metrics.val_loss?.toFixed(4)} mono large />
+                  )}
                 </div>
+              )}
 
-                {trainHistory.length > 2 && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-                    <div style={{ background: '#ffffff', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
-                      <MiniChart data={trainHistory.map(h => h.train_loss)} color="#f59e0b" height={100} label="Train Loss (full history)" />
-                    </div>
-                    <div style={{ background: '#ffffff', borderRadius: 10, padding: 16, border: '1px solid #e2e8f0' }}>
-                      <MiniChart data={trainHistory.map(h => h.accuracy)} color="#10b981" height={100} label="Accuracy (full history)" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
           </div>
 
           {/* ═══ RIGHT PANEL — AI CO-PILOT ═══ */}
-          <aside style={{
-            width: 340, flexShrink: 0, borderLeft: '1px solid #e2e8f0',
-            background: '#f1f5f9', display: 'flex', flexDirection: 'column',
-            overflow: 'hidden', minHeight: 0,
-          }}>
-            <div style={{
-              padding: '12px 16px', borderBottom: '1px solid #e2e8f0',
-              fontSize: 12, fontWeight: 600, color: '#64748b',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ fontSize: 14 }}>🧠</span> AI Co-Pilot
-              {aiLoading && <span style={{ color: '#10b981', fontSize: 10, animation: 'spin 1s linear infinite', display: 'inline-block' }}>◌</span>}
-              <span style={{
-                marginLeft: 'auto', fontSize: 10, padding: '2px 6px', borderRadius: 4,
-                background: '#e2e8f0', color: '#64748b',
-              }}>Qwen 2.5</span>
+          <aside className="w-80 flex-shrink-0 border-l border-slate-200/50 bg-primary text-on-primary flex flex-col overflow-hidden relative">
+            {/* Decorative blur */}
+            <div className="absolute -right-16 -top-16 w-48 h-48 bg-secondary rounded-full blur-[60px] opacity-20 pointer-events-none" />
+            <div className="absolute -left-8 bottom-0 w-24 h-24 bg-secondary-fixed-dim rounded-full blur-[50px] opacity-10 pointer-events-none" />
+
+            <div className="relative z-10 flex items-center gap-3 px-6 py-4 border-b border-on-primary-fixed-variant/30">
+              <span className="material-symbols-outlined text-secondary-fixed-dim">psychology</span>
+              <h3 className="font-headline font-bold text-base">AI Co-Pilot</h3>
+              {aiLoading && (
+                <span className="material-symbols-outlined text-secondary-fixed-dim text-sm ml-auto animate-spin">progress_activity</span>
+              )}
+              {!aiLoading && (
+                <span className="font-label text-[10px] font-bold tracking-wider text-on-primary-container ml-auto">Qwen 2.5</span>
+              )}
             </div>
 
-            <div ref={aiChatRef} style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div ref={aiChatRef} className="relative z-10 flex-1 overflow-y-auto p-4 flex flex-col gap-3">
               {aiMessages.length === 0 && (
-                <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '40px 16px', lineHeight: 1.7 }}>
+                <div className="text-xs text-on-primary-container text-center px-4 py-10 leading-relaxed">
                   The AI co-pilot will analyze your data and provide recommendations as you progress through the pipeline.
                 </div>
               )}
               {aiMessages.map((m, i) => (
-                <div key={i} style={{
-                  padding: '8px 12px', borderRadius: m.role === 'user' ? '10px 10px 2px 10px' : m.role === 'system' ? 8 : '2px 10px 10px 10px',
-                  background: m.role === 'user' ? '#10b981' : m.role === 'system' ? '#eef2ff' : '#ffffff',
-                  border: m.role === 'ai' ? '1px solid #e2e8f0' : m.role === 'system' ? '1px solid #c7d2fe' : 'none',
-                  color: m.role === 'user' ? '#fff' : m.role === 'system' ? '#6366f1' : '#1e293b',
-                  fontSize: 12, lineHeight: 1.6, maxWidth: m.role === 'system' ? '100%' : '90%',
-                  alignSelf: m.role === 'user' ? 'flex-end' : m.role === 'system' ? 'center' : 'flex-start',
-                  whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                }}>
+                <div key={i} className={`px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                  m.role === 'user'
+                    ? 'bg-white/10 rounded-xl rounded-br-sm self-end max-w-[88%] text-on-primary'
+                    : m.role === 'system'
+                    ? 'bg-white/5 rounded-lg self-center text-on-primary-container border border-white/10 max-w-full text-center'
+                    : 'bg-white/5 rounded-xl rounded-tl-sm self-start max-w-[88%] text-on-primary-container border border-white/10'
+                }`}>
                   {m.text}
                 </div>
               ))}
             </div>
 
-            <div style={{ padding: '8px 12px', borderTop: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', gap: 6 }}>
+            <div className="relative z-10 p-4 border-t border-on-primary-fixed-variant/30">
+              <div className="flex gap-2">
                 <input
                   value={aiInput} onChange={e => setAiInput(e.target.value)}
                   onKeyDown={e => {
@@ -1010,23 +1029,26 @@ export default function App() {
                     }
                   }}
                   placeholder="Ask the AI co-pilot..."
-                  style={{
-                    flex: 1, padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0',
-                    borderRadius: 6, color: '#1e293b', fontSize: 12,
-                  }}
+                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-on-primary text-xs placeholder:text-on-primary-container focus:outline-none focus:border-secondary-fixed-dim"
                 />
                 <button
                   onClick={() => { if (aiInput.trim()) { askAI(aiInput); setAiInput('') } }}
                   disabled={aiLoading}
-                  style={{
-                    padding: '8px 12px', borderRadius: 6, border: 'none', background: '#10b981',
-                    color: '#fff', fontWeight: 600, fontSize: 11, cursor: 'pointer',
-                  }}
-                >→</button>
+                  className="px-3 py-2 bg-secondary text-on-secondary rounded-lg font-bold text-xs hover:opacity-90 transition-opacity disabled:opacity-50"
+                >
+                  <span className="material-symbols-outlined text-base">send</span>
+                </button>
               </div>
             </div>
           </aside>
-        </main>
+        </div>
+      </div>
+
+      {/* FAB — Save */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <button className="w-14 h-14 bg-secondary text-on-secondary rounded-full shadow-2xl flex items-center justify-center hover:scale-105 transition-transform active:opacity-80">
+          <span className="material-symbols-outlined">save</span>
+        </button>
       </div>
     </div>
   )
@@ -1035,22 +1057,13 @@ export default function App() {
 
 // ── Small reusable pieces ───────────────────────────────────
 
-function MetricBox({ label, value, color, mono, large }) {
+function MetricBox({ label, value, mono, large, warn }) {
   return (
-    <div style={{
-      background: '#ffffff', borderRadius: 8, padding: '12px 14px',
-      border: '1px solid #e2e8f0',
-    }}>
-      <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>
-        {label}
-      </div>
-      <div style={{
-        fontSize: large ? 22 : 18, fontWeight: 700,
-        color: color || '#1e293b',
-        fontFamily: mono ? "'JetBrains Mono', monospace" : 'inherit',
-      }}>
+    <div className="bg-surface-container-lowest p-5 rounded-xl border border-outline-variant/20">
+      <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest mb-2">{label}</p>
+      <p className={`font-headline font-bold ${large ? 'text-3xl' : 'text-xl'} ${warn ? 'text-error' : 'text-primary'} ${mono ? 'font-mono' : ''}`}>
         {value ?? '—'}
-      </div>
+      </p>
     </div>
   )
 }
@@ -1058,17 +1071,12 @@ function MetricBox({ label, value, color, mono, large }) {
 function ConfigField({ label, value, onChange, type = 'text', options, placeholder, step }) {
   return (
     <div>
-      <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-        {label}
-      </div>
+      <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest mb-2">{label}</p>
       {options ? (
         <select
           value={value}
           onChange={e => onChange(e.target.value)}
-          style={{
-            width: '100%', padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0',
-            borderRadius: 6, color: '#1e293b', fontSize: 13,
-          }}
+          className="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm focus:outline-none focus:border-primary"
         >
           {options.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
@@ -1077,11 +1085,7 @@ function ConfigField({ label, value, onChange, type = 'text', options, placehold
           type={type} value={value} step={step}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
-          style={{
-            width: '100%', padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0',
-            borderRadius: 6, color: '#1e293b', fontSize: 13,
-            fontFamily: type === 'number' ? "'JetBrains Mono', monospace" : 'inherit',
-          }}
+          className={`w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm focus:outline-none focus:border-primary ${type === 'number' ? 'font-mono' : ''}`}
         />
       )}
     </div>
