@@ -775,6 +775,7 @@ def _train_tabular(config):
 
     meta = {
         "saved_at": ts,
+        "dataset_name": Path(config.get("data_path", "")).name or "Unknown Dataset",
         "feature_columns": numeric_cols,
         "label_classes": le.classes_.tolist(),
         "n_features": n_features,
@@ -1144,6 +1145,102 @@ def model_download_meta():
         download_name=Path(meta_path).name,
         mimetype="application/json",
     )
+
+
+# ── Model Gallery ─────────────────────────────────────────────
+@app.route("/model/gallery")
+def model_gallery():
+    """List all trained models (excludes checkpoint_ files)."""
+    models = []
+    for meta_path in sorted(MODELS_DIR.glob("model_*_meta.json"), reverse=True):
+        try:
+            with open(meta_path) as f:
+                meta = json.load(f)
+            stem = meta_path.name.replace("_meta.json", "")
+            model_file = MODELS_DIR / f"{stem}.pt"
+            models.append({
+                "id": stem,
+                "model_exists": model_file.exists(),
+                **meta,
+            })
+        except Exception:
+            continue
+    return jsonify({"models": models})
+
+
+@app.route("/model/gallery/<model_id>/download")
+def download_gallery_model(model_id):
+    """Download a specific model's .pt file by ID."""
+    from flask import send_file
+    if not model_id.startswith("model_") or "/" in model_id or ".." in model_id:
+        return jsonify({"error": "Invalid model ID"}), 400
+    model_file = MODELS_DIR / f"{model_id}.pt"
+    if not model_file.exists():
+        return jsonify({"error": "Model file not found"}), 404
+    return send_file(model_file, as_attachment=True,
+                     download_name=model_file.name,
+                     mimetype="application/octet-stream")
+
+
+@app.route("/model/load/<model_id>", methods=["POST"])
+def load_model(model_id):
+    """Set a gallery model as the active model."""
+    if not model_id.startswith("model_") or "/" in model_id or ".." in model_id:
+        return jsonify({"error": "Invalid model ID"}), 400
+    model_file = MODELS_DIR / f"{model_id}.pt"
+    meta_file = MODELS_DIR / f"{model_id}_meta.json"
+    if not model_file.exists():
+        return jsonify({"error": "Model file not found"}), 404
+    if not meta_file.exists():
+        return jsonify({"error": "Metadata not found"}), 404
+    with open(meta_file) as f:
+        meta = json.load(f)
+    with state_lock:
+        training_state["model_path"] = str(model_file)
+        training_state["model_meta_path"] = str(meta_file)
+        training_state["metrics"] = meta.get("final_metrics", {})
+        training_state["status"] = "complete"
+        training_state["active"] = False
+        training_state["epoch"] = meta.get("config", {}).get("epochs", 0)
+        training_state["total_epochs"] = meta.get("config", {}).get("epochs", 0)
+    return jsonify({"status": "loaded", "metrics": meta.get("final_metrics", {}), "meta": meta})
+
+
+@app.route("/model/delete/<model_id>", methods=["DELETE"])
+def delete_model(model_id):
+    """Delete a model and its metadata from the gallery."""
+    if not model_id.startswith("model_") or "/" in model_id or ".." in model_id:
+        return jsonify({"error": "Invalid model ID"}), 400
+    model_file = MODELS_DIR / f"{model_id}.pt"
+    meta_file = MODELS_DIR / f"{model_id}_meta.json"
+    deleted = []
+    for f in [model_file, meta_file]:
+        if f.exists():
+            f.unlink()
+            deleted.append(f.name)
+    with state_lock:
+        if training_state.get("model_path") == str(model_file):
+            training_state["model_path"] = None
+            training_state["model_meta_path"] = None
+    return jsonify({"status": "deleted", "files": deleted})
+
+
+@app.route("/model/rename/<model_id>", methods=["POST"])
+def rename_model(model_id):
+    """Save a user-readable nickname into the model's metadata."""
+    if not model_id.startswith("model_") or "/" in model_id or ".." in model_id:
+        return jsonify({"error": "Invalid model ID"}), 400
+    meta_file = MODELS_DIR / f"{model_id}_meta.json"
+    if not meta_file.exists():
+        return jsonify({"error": "Model not found"}), 404
+    body = request.json or {}
+    nickname = str(body.get("nickname", "")).strip()[:80]
+    with open(meta_file) as f:
+        meta = json.load(f)
+    meta["nickname"] = nickname
+    with open(meta_file, "w") as f:
+        json.dump(meta, f, indent=2)
+    return jsonify({"status": "renamed", "nickname": nickname})
 
 
 # ── Main ─────────────────────────────────────────────────────

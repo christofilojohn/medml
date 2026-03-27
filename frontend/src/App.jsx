@@ -343,6 +343,9 @@ export default function App() {
   const [continueEpochs, setContinueEpochs] = useState(20)
   const [checkpoint, setCheckpoint] = useState(null) // { metrics } snapshot before continuing
 
+  // Model gallery
+  const [showGallery, setShowGallery] = useState(false)
+
   // AI reasoning
   const [aiMessages, setAiMessages] = useState([])
   const [aiLoading, setAiLoading] = useState(false)
@@ -750,6 +753,15 @@ export default function App() {
             )
           })}
         </nav>
+
+        {/* ─── Gallery button ─── */}
+        <div className="px-4 pb-2">
+          <button onClick={() => setShowGallery(true)}
+            className="w-full py-2 rounded-xl border border-slate-200 text-slate-500 text-xs font-label font-semibold flex items-center justify-center gap-2 hover:bg-slate-100 hover:text-primary transition-colors">
+            <span className="material-symbols-outlined text-base">photo_library</span>
+            Model Gallery
+          </button>
+        </div>
 
         {/* ─── Initialize Engine CTA ─── */}
         <div className="px-4 pt-4 border-t border-slate-200/50 space-y-2">
@@ -1450,10 +1462,17 @@ export default function App() {
               {/* STAGE 5: EVALUATE */}
               {stage === 5 && training?.metrics && (
                 <div className="fade-up space-y-6">
-                  <div>
-                    <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Performance Assessment</p>
-                    <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Evaluation Results</h2>
-                    <p className="text-sm text-on-surface-variant mt-1">Training complete. Review performance before deciding next steps.</p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Performance Assessment</p>
+                      <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Evaluation Results</h2>
+                      <p className="text-sm text-on-surface-variant mt-1">Training complete. Review performance before deciding next steps.</p>
+                    </div>
+                    <button onClick={() => setShowGallery(true)}
+                      className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border border-outline-variant/40 text-sm font-label font-semibold text-on-surface-variant hover:bg-surface-container hover:text-primary transition-colors">
+                      <span className="material-symbols-outlined text-base">photo_library</span>
+                      Gallery
+                    </button>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1680,12 +1699,227 @@ export default function App() {
           <span className="material-symbols-outlined">save</span>
         </button>
       </div>
+
+      {/* Model Gallery modal */}
+      {showGallery && (
+        <ModelGallery
+          onClose={() => setShowGallery(false)}
+          onLoad={(data) => {
+            setTraining({ active: false, status: 'complete', metrics: data.metrics, epoch: data.meta?.config?.epochs, total_epochs: data.meta?.config?.epochs })
+            setTrainHistory([])
+            completeStage(4)
+            setStage(5)
+          }}
+        />
+      )}
     </div>
   )
 }
 
 
 // ── Small reusable pieces ───────────────────────────────────
+
+// ── Model type display config ────────────────────────────────
+const MODEL_TYPE_CONFIG = {
+  mlp:      { icon: 'memory',       bg: '#00193c', label: 'MLP Neural Net' },
+  cnn:      { icon: 'blur_on',      bg: '#7b41b3', label: 'CNN' },
+  resnet:   { icon: 'hub',          bg: '#005312', label: 'ResNet' },
+  logistic: { icon: 'linear_scale', bg: '#b45309', label: 'Logistic Regression' },
+  auto:     { icon: 'auto_awesome', bg: '#1e40af', label: 'Auto-Selected' },
+}
+
+function formatSavedAt(ts) {
+  if (!ts) return '—'
+  // ts = "20240101_120000"
+  try {
+    const [date, time] = ts.split('_')
+    return `${date.slice(6, 8)}/${date.slice(4, 6)}/${date.slice(0, 4)}  ${time.slice(0, 2)}:${time.slice(2, 4)}`
+  } catch { return ts }
+}
+
+function ModelCard({ model, onLoad, onDelete, deleting, onRename }) {
+  const [editing, setEditing] = useState(false)
+  const [nick, setNick] = useState(model.nickname || '')
+  const typeKey = (model.config?.model_type || 'auto').toLowerCase()
+  const tc = MODEL_TYPE_CONFIG[typeKey] || MODEL_TYPE_CONFIG.auto
+  const datasetName = model.dataset_name || model.config?.data_path?.split('/').pop() || 'Dataset'
+  const metrics = model.final_metrics || {}
+  const featureCount = model.feature_columns?.length ?? model.n_features
+
+  const handleRenameSubmit = () => {
+    onRename(nick.trim())
+    setEditing(false)
+  }
+
+  return (
+    <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 overflow-hidden flex flex-col shadow-sm hover:shadow-lg transition-shadow">
+      {/* Colored header */}
+      <div className="px-5 py-4 flex items-start gap-3" style={{ background: tc.bg }}>
+        <span className="material-symbols-outlined text-white text-4xl mt-0.5">{tc.icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="font-label text-[10px] text-white/60 uppercase tracking-widest">{tc.label}</p>
+          {editing ? (
+            <div className="flex gap-1 mt-0.5">
+              <input autoFocus value={nick} onChange={e => setNick(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleRenameSubmit(); if (e.key === 'Escape') setEditing(false) }}
+                className="flex-1 bg-white/20 text-white placeholder:text-white/50 text-sm font-bold rounded px-2 py-0.5 outline-none border border-white/40 min-w-0"
+                placeholder={datasetName} />
+              <button onClick={handleRenameSubmit} className="text-white/80 hover:text-white">
+                <span className="material-symbols-outlined text-base">check</span>
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setEditing(true)} className="text-left group w-full">
+              <p className="font-headline font-bold text-white text-lg leading-tight truncate group-hover:opacity-80">
+                {model.nickname || datasetName}
+              </p>
+              <p className="text-white/50 text-[10px]">{model.nickname ? datasetName : 'tap to rename'}</p>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="grid grid-cols-2 divide-x divide-outline-variant/20 border-b border-outline-variant/15">
+        <div className="py-3 text-center">
+          <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-wide">Accuracy</p>
+          <p className="font-headline font-bold text-2xl text-primary">
+            {metrics.accuracy != null ? `${(metrics.accuracy * 100).toFixed(1)}%` : '—'}
+          </p>
+        </div>
+        <div className="py-3 text-center">
+          <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-wide">F1 Score</p>
+          <p className="font-headline font-bold text-2xl text-primary">{metrics.f1?.toFixed(3) ?? '—'}</p>
+        </div>
+      </div>
+
+      {/* Config chips */}
+      <div className="px-4 py-2.5 flex flex-wrap gap-1.5 border-b border-outline-variant/15">
+        {model.config?.epochs && (
+          <span className="px-2 py-0.5 bg-surface-container rounded-full text-[10px] text-on-surface-variant font-label">{model.config.epochs} epochs</span>
+        )}
+        {model.config?.lr && (
+          <span className="px-2 py-0.5 bg-surface-container rounded-full text-[10px] text-on-surface-variant font-label">LR {model.config.lr}</span>
+        )}
+        {featureCount != null && (
+          <span className="px-2 py-0.5 bg-surface-container rounded-full text-[10px] text-on-surface-variant font-label">{featureCount} features</span>
+        )}
+        {model.config?.target_column && (
+          <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-label font-medium">→ {model.config.target_column}</span>
+        )}
+        <span className="px-2 py-0.5 bg-surface-container rounded-full text-[10px] text-on-surface-variant font-label ml-auto">{formatSavedAt(model.saved_at)}</span>
+      </div>
+
+      {/* Actions */}
+      <div className="px-4 py-3 flex items-center gap-2">
+        <button onClick={onLoad}
+          className="flex-1 py-2 bg-primary text-on-primary rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 hover:opacity-90 transition-opacity">
+          <span className="material-symbols-outlined text-sm">upload_file</span>
+          Load
+        </button>
+        <a href={`/model/gallery/${model.id}/download`}
+          className="p-2 rounded-lg bg-surface-container text-on-surface-variant hover:bg-surface-container-high transition-colors"
+          title="Download .pt">
+          <span className="material-symbols-outlined text-base">download</span>
+        </a>
+        <button onClick={onDelete} disabled={deleting}
+          className="p-2 rounded-lg text-error hover:bg-error-container/40 transition-colors disabled:opacity-40">
+          <span className="material-symbols-outlined text-base">{deleting ? 'hourglass_empty' : 'delete'}</span>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ModelGallery({ onClose, onLoad }) {
+  const [models, setModels] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState(null)
+
+  const refresh = () => {
+    setLoading(true)
+    fetch('/model/gallery')
+      .then(r => r.json())
+      .then(d => { setModels(d.models || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }
+
+  useEffect(() => { refresh() }, [])
+
+  const handleDelete = async (id) => {
+    setDeletingId(id)
+    await fetch(`/model/delete/${id}`, { method: 'DELETE' }).catch(() => {})
+    setModels(m => m.filter(model => model.id !== id))
+    setDeletingId(null)
+  }
+
+  const handleLoad = async (model) => {
+    const r = await fetch(`/model/load/${model.id}`, { method: 'POST' })
+    const data = await r.json()
+    if (!data.error) { onLoad(data); onClose() }
+  }
+
+  const handleRename = async (id, nickname) => {
+    await fetch(`/model/rename/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nickname }),
+    }).catch(() => {})
+    setModels(m => m.map(model => model.id === id ? { ...model, nickname } : model))
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-start justify-center bg-black/60 backdrop-blur-sm pt-8 pb-4 px-4"
+      onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="w-full max-w-5xl max-h-full bg-surface rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 py-5 border-b border-outline-variant/20 flex-shrink-0">
+          <div>
+            <h2 className="font-headline text-2xl font-extrabold text-primary tracking-tighter flex items-center gap-3">
+              <span className="material-symbols-outlined text-secondary">photo_library</span>
+              Model Gallery
+            </h2>
+            <p className="text-sm text-on-surface-variant mt-0.5">
+              {models.length} model{models.length !== 1 ? 's' : ''} saved locally · tap a name to rename
+            </p>
+          </div>
+          <button onClick={onClose}
+            className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-container transition-colors">
+            <span className="material-symbols-outlined text-on-surface-variant">close</span>
+          </button>
+        </div>
+
+        {/* Grid */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {loading ? (
+            <div className="flex items-center justify-center h-48">
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : models.length === 0 ? (
+            <div className="text-center py-20">
+              <span className="material-symbols-outlined text-6xl text-outline block mb-3">hub</span>
+              <p className="text-on-surface-variant text-sm font-label">No models saved yet.</p>
+              <p className="text-on-surface-variant text-xs mt-1">Complete a training run to save your first model.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {models.map(model => (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  onLoad={() => handleLoad(model)}
+                  onDelete={() => handleDelete(model.id)}
+                  deleting={deletingId === model.id}
+                  onRename={(nick) => handleRename(model.id, nick)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function AskChips({ questions, onAsk }) {
   return (
