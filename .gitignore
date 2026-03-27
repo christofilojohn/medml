@@ -4,3 +4,5 @@
 .ml-worker.log
 .ui.log
 /frontend/node_modules
+.venv/
+**/.venv/

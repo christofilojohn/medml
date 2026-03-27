@@ -64,6 +64,10 @@ GPU_TYPE = os.environ.get("GPU_TYPE", "cpu")
 app = Flask(__name__)
 CORS(app)
 
+# Directory to save trained models
+MODELS_DIR = Path(os.environ.get("MODELS_DIR", "./saved_models"))
+MODELS_DIR.mkdir(exist_ok=True)
+
 # Global training state
 training_state = {
     "active": False,
@@ -74,6 +78,8 @@ training_state = {
     "status": "idle",  # idle | scanning | cleaning | training | complete | error
     "logs": [],
     "stop_requested": False,
+    "model_path": None,       # path to saved .pt file
+    "model_meta_path": None,  # path to saved metadata JSON
 }
 
 # Global dataset info
@@ -745,10 +751,33 @@ def _train_tabular(config):
         if epoch % 10 == 0:
             add_log(f"Epoch {epoch}/{config['epochs']}: loss={train_loss:.4f}, val_loss={val_loss:.4f}, acc={acc:.4f}")
 
-    add_log("Training complete!")
+    # ── Save model ───────────────────────────────────────────────
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    model_path = MODELS_DIR / f"model_{ts}.pt"
+    meta_path = MODELS_DIR / f"model_{ts}_meta.json"
+
+    torch.save(model.state_dict(), model_path)
+
+    meta = {
+        "saved_at": ts,
+        "feature_columns": numeric_cols,
+        "label_classes": le.classes_.tolist(),
+        "n_features": n_features,
+        "num_classes": num_classes,
+        "scaler_mean": scaler.mean_.tolist(),
+        "scaler_scale": scaler.scale_.tolist(),
+        "final_metrics": training_state["metrics"],
+        "config": config,
+    }
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, indent=2)
+
+    add_log(f"Model saved → {model_path.name}")
     with state_lock:
         training_state["active"] = False
         training_state["status"] = "complete"
+        training_state["model_path"] = str(model_path)
+        training_state["model_meta_path"] = str(meta_path)
 
 
 def _train_image(config):
@@ -954,6 +983,51 @@ def cleanup_data():
     add_log(f"Cleanup complete: {len(results['actions_taken'])} actions")
 
     return jsonify(results)
+
+
+# ── Model Export ──────────────────────────────────────────────
+@app.route("/model/info")
+def model_info():
+    """Return info about the last saved model."""
+    with state_lock:
+        meta_path = training_state.get("model_meta_path")
+    if not meta_path or not Path(meta_path).exists():
+        return jsonify({"error": "No model saved yet"}), 404
+    with open(meta_path) as f:
+        meta = json.load(f)
+    return jsonify(meta)
+
+
+@app.route("/model/download")
+def model_download():
+    """Download the last saved model weights (.pt)."""
+    from flask import send_file
+    with state_lock:
+        model_path = training_state.get("model_path")
+    if not model_path or not Path(model_path).exists():
+        return jsonify({"error": "No model saved yet"}), 404
+    return send_file(
+        model_path,
+        as_attachment=True,
+        download_name=Path(model_path).name,
+        mimetype="application/octet-stream",
+    )
+
+
+@app.route("/model/download_meta")
+def model_download_meta():
+    """Download the last saved model metadata (.json)."""
+    from flask import send_file
+    with state_lock:
+        meta_path = training_state.get("model_meta_path")
+    if not meta_path or not Path(meta_path).exists():
+        return jsonify({"error": "No model saved yet"}), 404
+    return send_file(
+        meta_path,
+        as_attachment=True,
+        download_name=Path(meta_path).name,
+        mimetype="application/json",
+    )
 
 
 # ── Main ─────────────────────────────────────────────────────
