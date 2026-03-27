@@ -846,79 +846,144 @@ export default function App() {
 
               {/* STAGE 0: SCAN */}
               {stage === 0 && (
-                <div className="fade-up space-y-6">
-                  <div>
-                    <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Data Ingestion</p>
-                    <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Point to Your Data</h2>
+                <div className="fade-up">
+
+                  {/* ── Hero ── */}
+                  <div className="text-center mb-10">
+                    {/* Icon cluster */}
+                    <div className="inline-flex items-center justify-center relative mb-6">
+                      <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center shadow-xl">
+                        <span className="material-symbols-outlined text-on-primary" style={{ fontSize: 40 }}>dataset</span>
+                      </div>
+                      {['csv', 'img', 'xl'].map((t, i) => (
+                        <div key={t} className="absolute w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/30 flex items-center justify-center shadow-sm"
+                          style={{ top: i === 0 ? -8 : i === 1 ? 'auto' : -8, bottom: i === 1 ? -8 : 'auto', left: i === 0 ? -10 : 'auto', right: i !== 0 ? -10 : 'auto' }}>
+                          <span className="material-symbols-outlined text-on-surface-variant" style={{ fontSize: 16 }}>
+                            {t === 'csv' ? 'table_chart' : t === 'img' ? 'image' : 'grid_on'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-2">Step 1 · Data Ingestion</p>
+                    <h1 className="font-headline text-4xl font-extrabold text-primary tracking-tighter mb-3">Load Your Dataset</h1>
+                    <p className="text-on-surface-variant text-sm max-w-md mx-auto leading-relaxed">
+                      Point to a folder on this machine. The scanner reads only structure and statistics —
+                      never the contents of individual records.
+                    </p>
                   </div>
 
-                  <div className="bg-surface-container-low p-8 rounded-xl space-y-6">
-                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4">
-                      <span className="material-symbols-outlined text-primary">folder_open</span>
-                      <h3 className="font-headline text-lg font-bold text-primary">Dataset Location</h3>
-                    </div>
-                    <p className="text-sm text-on-surface-variant">
-                      Enter the path to your local dataset. Only metadata is analyzed — never raw patient data.
-                    </p>
-                    <div className="flex gap-3">
-                      <input
-                        value={dataPath} onChange={e => setDataPath(e.target.value)}
-                        placeholder="/path/to/your/dataset"
-                        onKeyDown={e => e.key === 'Enter' && runScan()}
-                        className="flex-1 px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm font-mono focus:outline-none focus:border-primary"
-                      />
-                      <button
-                        onClick={async () => {
-                          try {
-                            const res = await fetch('http://localhost:8081/pick-folder', { method: 'POST' })
-                            const data = await res.json()
-                            if (data.path) setDataPath(data.path)
-                          } catch {
-                            alert('Could not open folder picker — is the backend running?')
-                          }
-                        }}
-                        className="px-4 py-2.5 bg-surface-container-high text-primary font-bold text-sm rounded-lg hover:bg-surface-container-highest transition-colors whitespace-nowrap flex items-center gap-2"
-                      >
-                        <span className="material-symbols-outlined text-base">folder</span>
-                        Browse
+                  {/* ── Scan complete result ── */}
+                  {scanResult && !scanning && (
+                    <div className="mb-6 bg-tertiary-container/30 border border-on-tertiary-fixed-variant/20 rounded-2xl p-5 flex items-center gap-5">
+                      <div className="w-12 h-12 rounded-xl bg-on-tertiary-fixed-variant/10 flex items-center justify-center flex-shrink-0">
+                        <span className="material-symbols-outlined text-on-tertiary-fixed-variant text-2xl">check_circle</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-headline font-bold text-primary text-base truncate">
+                          {dataPath.split('/').pop() || dataPath}
+                        </p>
+                        <p className="text-xs text-on-surface-variant mt-0.5">
+                          {scanResult.type === 'tabular'
+                            ? `${scanResult.summary?.total_rows?.toLocaleString()} rows · ${scanResult.summary?.total_columns} columns · ${scanResult.type}`
+                            : scanResult.type === 'image'
+                            ? `${scanResult.summary?.total_files?.toLocaleString()} images · ${scanResult.summary?.num_classes} classes`
+                            : 'Dataset ready'}
+                        </p>
+                      </div>
+                      <button onClick={goNext}
+                        className="shrink-0 px-5 py-2.5 bg-primary text-on-primary rounded-xl text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-all shadow-lg">
+                        Preview data
+                        <span className="material-symbols-outlined text-base">arrow_forward</span>
                       </button>
+                    </div>
+                  )}
+
+                  {/* ── Drop zone card ── */}
+                  <div className={`rounded-2xl border-2 transition-colors ${dataPath.trim() ? 'border-primary/30 bg-primary/3' : 'border-dashed border-outline-variant/50 bg-surface-container-low/50'}`}>
+                    <div className="p-8 space-y-5">
+
+                      {/* Path input row */}
+                      <div className="space-y-2">
+                        <label className="font-label text-xs uppercase tracking-widest text-on-surface-variant">Dataset folder path</label>
+                        <div className="flex gap-2">
+                          <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-surface-container-lowest border border-outline-variant/40 rounded-xl focus-within:border-primary transition-colors">
+                            <span className="material-symbols-outlined text-on-surface-variant text-xl flex-shrink-0">folder_open</span>
+                            <input
+                              value={dataPath} onChange={e => setDataPath(e.target.value)}
+                              placeholder="/Users/you/clinical-data/dataset"
+                              onKeyDown={e => e.key === 'Enter' && dataPath.trim() && runScan()}
+                              className="flex-1 bg-transparent text-on-surface text-sm font-mono focus:outline-none min-w-0"
+                            />
+                            {dataPath && (
+                              <button onClick={() => setDataPath('')} className="text-on-surface-variant hover:text-on-surface transition-colors flex-shrink-0">
+                                <span className="material-symbols-outlined text-base">close</span>
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch('http://localhost:8081/pick-folder', { method: 'POST' })
+                                const data = await res.json()
+                                if (data.path) setDataPath(data.path)
+                              } catch {
+                                alert('Could not open folder picker — is the backend running?')
+                              }
+                            }}
+                            className="px-4 py-3 bg-surface-container-high text-primary font-bold text-sm rounded-xl hover:bg-surface-container-highest transition-colors whitespace-nowrap flex items-center gap-2 border border-outline-variant/20"
+                          >
+                            <span className="material-symbols-outlined text-base">drive_folder_upload</span>
+                            Browse
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Scan button */}
                       <button onClick={runScan} disabled={scanning || !dataPath.trim()}
-                        className={`px-6 py-2.5 font-bold text-sm rounded-lg flex items-center gap-2 transition-all ${
-                          scanning || !dataPath.trim()
+                        className={`w-full py-3.5 rounded-xl font-headline font-bold text-base flex items-center justify-center gap-3 transition-all ${
+                          scanning
                             ? 'bg-surface-container text-on-surface-variant cursor-not-allowed'
-                            : 'bg-primary text-on-primary hover:opacity-90 shadow-lg'
+                            : !dataPath.trim()
+                            ? 'bg-surface-container text-on-surface-variant/50 cursor-not-allowed'
+                            : 'bg-primary text-on-primary hover:opacity-90 shadow-xl active:scale-[0.99]'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-base">
-                          {scanning ? 'hourglass_empty' : 'play_arrow'}
-                        </span>
-                        {scanning ? 'Scanning...' : 'Scan'}
+                        {scanning ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-on-surface-variant border-t-transparent rounded-full animate-spin" />
+                            Analyzing dataset…
+                          </>
+                        ) : (
+                          <>
+                            <span className="material-symbols-outlined text-xl">biotech</span>
+                            Scan Dataset
+                          </>
+                        )}
                       </button>
+
+                      {/* Supported formats */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[10px] font-label text-on-surface-variant uppercase tracking-widest">Supports:</span>
+                        {['CSV', 'Excel', 'Parquet', 'PNG / JPEG', 'DICOM'].map(fmt => (
+                          <span key={fmt} className="px-2.5 py-1 bg-surface-container rounded-full text-[11px] font-label text-on-surface-variant border border-outline-variant/20">
+                            {fmt}
+                          </span>
+                        ))}
+                      </div>
                     </div>
 
-                    <div className="bg-surface p-5 rounded-lg border-l-4 border-primary font-mono text-xs text-on-surface-variant leading-relaxed space-y-1">
-                      <p className="text-outline mb-2"># What the scanner does locally:</p>
-                      <p className="text-on-tertiary-container">→ Counts files, detects formats (CSV, DICOM, PNG...)</p>
-                      <p className="text-on-tertiary-container">→ Reads column names &amp; types (tabular)</p>
-                      <p className="text-on-tertiary-container">→ Detects class folders &amp; resolution (images)</p>
-                      <p className="text-on-tertiary-container">→ Computes distributions, missing %, duplicates</p>
-                      <p className="text-on-tertiary-container">→ Generates sample thumbnails (images only)</p>
-                      <p className="text-error mt-2">✗ Never reads raw cell values or pixel data</p>
-                      <p className="text-error">✗ Never uploads anything to any server</p>
-                    </div>
-
-                    {/* Guided next step */}
-                    <div className="border-t border-outline-variant/15 pt-4 flex items-center justify-between">
-                      <p className="text-xs text-on-surface-variant">
-                        {scanResult ? '✓ Dataset scanned successfully' : 'Enter your dataset path above'}
-                      </p>
-                      {scanResult && (
-                        <button onClick={goNext}
-                          className="px-4 py-2 bg-primary text-on-primary rounded-md text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all">
-                          Preview data
-                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                        </button>
-                      )}
+                    {/* Privacy strip */}
+                    <div className="border-t border-outline-variant/20 px-8 py-4 flex flex-wrap items-center gap-6">
+                      {[
+                        { icon: 'lock', text: 'Runs 100% locally' },
+                        { icon: 'visibility_off', text: 'Never reads record values' },
+                        { icon: 'cloud_off', text: 'Zero uploads' },
+                      ].map(({ icon, text }) => (
+                        <div key={text} className="flex items-center gap-1.5 text-xs text-on-surface-variant">
+                          <span className="material-symbols-outlined text-[15px] text-on-tertiary-fixed-variant">{icon}</span>
+                          {text}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
