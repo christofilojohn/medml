@@ -410,18 +410,124 @@ export default function App() {
     setScanning(false)
   }
 
+  // ── Build full app context for AI ────────────────────────
+  // Called fresh on every AI request so it always reflects the latest state.
+  const buildContext = () => {
+    const ctx = {
+      current_stage: STAGES[stage]?.label,
+      stages_completed: [...completed].map(i => STAGES[i]?.label),
+    }
+
+    // Dataset summary
+    if (dataset?.summary) {
+      ctx.dataset = {
+        type: dataset.type,
+        ...dataset.summary,
+        // strip verbose fields
+        columns: undefined,
+        preview: undefined,
+      }
+      if (dataset.columns) {
+        ctx.dataset.column_names = dataset.columns.map(c => c.name)
+        ctx.dataset.columns_with_missing = dataset.columns
+          .filter(c => c.missing_pct > 0)
+          .map(c => `${c.name} (${c.missing_pct}% missing)`)
+      }
+    }
+
+    // Cleanup
+    if (cleanupResult) {
+      ctx.cleanup = {
+        actions_taken: cleanupResult.actions_taken,
+        rows_before: cleanupResult.rows_before,
+        rows_after: cleanupResult.rows_after,
+        rows_removed: (cleanupResult.rows_before || 0) - (cleanupResult.rows_after || 0),
+      }
+    }
+
+    // Feature selection
+    ctx.feature_selection = { mode: featureMode }
+    if (selectedFeatures.length > 0) {
+      ctx.feature_selection.selected = selectedFeatures
+      ctx.feature_selection.selected_count = selectedFeatures.length
+    } else {
+      ctx.feature_selection.selected = 'all features'
+    }
+    if (autoFeatures) {
+      ctx.feature_selection.method = autoFeatures.method
+      ctx.feature_selection.target_column = autoFeatures.target_column
+      ctx.feature_selection.ai_recommended = autoFeatures.selected
+      ctx.feature_selection.total_available = autoFeatures.all_features?.length
+      // Top 10 by importance score
+      const imp = autoFeatures.importances || {}
+      ctx.feature_selection.top_importances = Object.entries(imp)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 10)
+        .map(([feat, score]) => ({ feature: feat, importance: Number(score.toFixed(4)) }))
+    }
+
+    // Training configuration
+    ctx.training_config = {
+      model_type: trainConfig.model_type,
+      target_column: trainConfig.target_column,
+      epochs: trainConfig.epochs,
+      learning_rate: trainConfig.lr,
+      batch_size: trainConfig.batch_size,
+    }
+
+    // Live training state + results
+    if (training) {
+      ctx.training = {
+        status: training.status,
+        epoch: training.epoch,
+        total_epochs: training.total_epochs || trainConfig.epochs,
+        progress_pct: training.progress,
+        latest_metrics: training.metrics
+          ? {
+              accuracy: training.metrics.accuracy?.toFixed(4),
+              f1: training.metrics.f1?.toFixed(4),
+              train_loss: training.metrics.train_loss?.toFixed(4),
+              val_loss: training.metrics.val_loss?.toFixed(4),
+            }
+          : null,
+      }
+
+      if (trainHistory.length >= 2) {
+        // Send last 5 epochs so AI can see the trend
+        ctx.training.recent_history = trainHistory.slice(-5).map(h => ({
+          train_loss: h.train_loss?.toFixed(4),
+          val_loss: h.val_loss?.toFixed(4),
+          accuracy: h.accuracy?.toFixed(4),
+          f1: h.f1?.toFixed(4),
+        }))
+
+        // Derive a simple trend indicator
+        const first = trainHistory[0]
+        const last = trainHistory[trainHistory.length - 1]
+        const valGap = (last.val_loss || 0) - (last.train_loss || 0)
+        ctx.training.trend = {
+          loss_improved: last.train_loss < first.train_loss,
+          accuracy_improved: (last.accuracy || 0) > (first.accuracy || 0),
+          possible_overfitting: valGap > 0.15,
+          val_train_loss_gap: valGap.toFixed(4),
+        }
+      }
+    }
+
+    return ctx
+  }
+
   // ── Ask AI (Qwen reasoning) ───────────────────────────────
-  const askAI = async (prompt, context = null) => {
+  const askAI = async (prompt, extraContext = null) => {
     setAiMessages(prev => [...prev, { role: 'user', text: prompt }])
     setAiLoading(true)
     try {
+      // Always build a fresh full-state context; caller can add extra fields
+      const context = { ...buildContext(), ...(extraContext || {}) }
       const r = await fetch('/reason', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt,
-          context: context || scanResult?.summary || {},
-        }),
+        body: JSON.stringify({ prompt, context }),
       })
       const data = await r.json()
       setAiMessages(prev => [...prev, { role: 'ai', text: data.reply }])

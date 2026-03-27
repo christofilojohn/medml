@@ -1,0 +1,45 @@
+{
+  "saved_at": "20260327_144257",
+  "feature_columns": [
+    "Glucose",
+    "BMI",
+    "Age"
+  ],
+  "label_classes": [
+    0,
+    1
+  ],
+  "n_features": 3,
+  "num_classes": 2,
+  "scaler_mean": [
+    120.89453125,
+    31.99257813890775,
+    33.240885416666664
+  ],
+  "scaler_scale": [
+    31.95179590820272,
+    7.879025704193277,
+    11.752572645994181
+  ],
+  "final_metrics": {
+    "train_loss": 0.429118,
+    "val_loss": 0.516881,
+    "accuracy": 0.7403,
+    "f1": 0.7378,
+    "lr": 0.000128125
+  },
+  "config": {
+    "data_path": "/Users/christofilojohn/Downloads/diabetes",
+    "target_column": "",
+    "epochs": 50,
+    "model_type": "resnet",
+    "batch_size": 160,
+    "lr": 0.0164,
+    "val_split": 0.2,
+    "feature_columns": [
+      "Glucose",
+      "BMI",
+      "Age"
+    ]
+  }
+}
