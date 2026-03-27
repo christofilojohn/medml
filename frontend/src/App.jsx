@@ -989,6 +989,25 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  <div className="flex gap-3 pt-2">
+                    <a
+                      href="/model/download"
+                      download
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-opacity"
+                    >
+                      <span className="material-symbols-outlined text-base">download</span>
+                      Download Model (.pt)
+                    </a>
+                    <a
+                      href="/model/download_meta"
+                      download
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-surface-container text-on-surface text-sm font-semibold border border-outline hover:bg-surface-container-high transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base">data_object</span>
+                      Download Metadata (.json)
+                    </a>
+                  </div>
                 </div>
               )}
 
