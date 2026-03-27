@@ -20,34 +20,109 @@ const STAGES = [
   { id: 'eval',    icon: 'analytics',                label: 'Evaluate',  desc: 'Performance assessment' },
 ]
 
-// ── Tiny chart component ────────────────────────────────────
-function MiniChart({ data, color = '#10b981', height = 80, label }) {
-  if (!data || data.length < 2) return null
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
-  const w = 100
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w
-    const y = height - ((v - min) / range) * (height - 8) - 4
-    return `${x},${y}`
-  }).join(' ')
-  const areaPoints = `0,${height} ${points} ${w},${height}`
+// ── Training history chart ───────────────────────────────────
+// series = [{ label, color, data: number[] }]
+function TrainingChart({ series, title }) {
+  const allVals = series.flatMap(s => s.data).filter(v => v != null && !isNaN(v))
+  if (allVals.length < 2) return null
+
+  const maxLen = Math.max(...series.map(s => s.data.length))
+  const rawMin = Math.min(...allVals)
+  const rawMax = Math.max(...allVals)
+  const pad = (rawMax - rawMin) * 0.08 || 0.05
+  const yMin = Math.max(0, rawMin - pad)
+  const yMax = rawMax + pad
+  const yRange = yMax - yMin || 1
+
+  const W = 560, H = 200
+  const PL = 46, PR = 16, PT = 14, PB = 30
+  const cw = W - PL - PR
+  const ch = H - PT - PB
+
+  const tx = i => PL + (i / Math.max(maxLen - 1, 1)) * cw
+  const ty = v => PT + (1 - (v - yMin) / yRange) * ch
+
+  const yTicks = 4
+  const xTicks = Math.min(6, maxLen)
 
   return (
-    <div style={{ position: 'relative' }}>
-      {label && <div style={{ fontSize: 10, color: '#64748b', marginBottom: 4 }}>{label}</div>}
-      <svg viewBox={`0 0 ${w} ${height}`} style={{ width: '100%', height }}>
+    <div className="bg-surface-container-low p-5 rounded-xl">
+      <div className="flex items-center justify-between mb-3">
+        <p className="font-headline font-bold text-primary text-sm">{title}</p>
+        <div className="flex items-center gap-5">
+          {series.map(s => (
+            <div key={s.label} className="flex items-center gap-1.5">
+              <div className="w-5 h-0.5 rounded-full" style={{ background: s.color }} />
+              <span className="font-label text-[10px] uppercase tracking-wider text-on-surface-variant">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
         <defs>
-          <linearGradient id={`g-${label}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.3" />
-            <stop offset="100%" stopColor={color} stopOpacity="0" />
-          </linearGradient>
+          {series.map(s => (
+            <linearGradient key={s.label} id={`tg-${s.label.replace(/\W/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={s.color} stopOpacity="0.2" />
+              <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+            </linearGradient>
+          ))}
         </defs>
-        <polygon points={areaPoints} fill={`url(#g-${label})`} />
-        <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx={(data.length - 1) / (data.length - 1) * w} cy={height - ((data[data.length - 1] - min) / range) * (height - 8) - 4}
-          r="3" fill={color} />
+
+        {/* Horizontal grid + Y labels */}
+        {Array.from({ length: yTicks + 1 }, (_, i) => {
+          const v = yMin + (i / yTicks) * yRange
+          const y = ty(v)
+          return (
+            <g key={i}>
+              <line x1={PL} y1={y} x2={W - PR} y2={y} stroke="#e1e3e4" strokeWidth="1" />
+              <text x={PL - 5} y={y + 3.5} textAnchor="end" fontSize="9" fill="#747781">
+                {yRange < 0.1 ? v.toFixed(4) : v.toFixed(3)}
+              </text>
+            </g>
+          )
+        })}
+
+        {/* X axis labels */}
+        {Array.from({ length: xTicks }, (_, i) => {
+          const idx = Math.round((i / (xTicks - 1)) * (maxLen - 1))
+          const x = tx(idx)
+          return (
+            <g key={i}>
+              <line x1={x} y1={H - PB} x2={x} y2={H - PB + 4} stroke="#c4c6d1" strokeWidth="1" />
+              <text x={x} y={H - PB + 13} textAnchor="middle" fontSize="9" fill="#747781">{idx + 1}</text>
+            </g>
+          )
+        })}
+        <text x={W / 2} y={H - 2} textAnchor="middle" fontSize="9" fill="#c4c6d1">epoch</text>
+
+        {/* Axes */}
+        <line x1={PL} y1={PT} x2={PL} y2={H - PB} stroke="#c4c6d1" strokeWidth="1" />
+        <line x1={PL} y1={H - PB} x2={W - PR} y2={H - PB} stroke="#c4c6d1" strokeWidth="1" />
+
+        {/* Series */}
+        {series.map(s => {
+          const pts = s.data
+            .map((v, i) => (v != null && !isNaN(v) ? `${tx(i).toFixed(2)},${ty(v).toFixed(2)}` : null))
+            .filter(Boolean)
+          if (pts.length < 2) return null
+          const last = pts[pts.length - 1].split(',')
+          const area = `${PL},${H - PB} ${pts.join(' ')} ${last[0]},${H - PB}`
+          const gradId = `tg-${s.label.replace(/\W/g, '')}`
+          const lastV = s.data.filter(v => v != null && !isNaN(v)).at(-1)
+          return (
+            <g key={s.label}>
+              <polygon points={area} fill={`url(#${gradId})`} />
+              <polyline points={pts.join(' ')} fill="none" stroke={s.color}
+                strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx={last[0]} cy={last[1]} r="4" fill={s.color} />
+              {/* Latest value label */}
+              <text x={parseFloat(last[0]) - 4} y={parseFloat(last[1]) - 7}
+                textAnchor="end" fontSize="9" fill={s.color} fontWeight="600">
+                {lastV?.toFixed(4)}
+              </text>
+            </g>
+          )
+        })}
       </svg>
     </div>
   )
@@ -904,60 +979,107 @@ export default function App() {
               {/* STAGE 4: TRAINING */}
               {stage === 4 && (
                 <div className="fade-up space-y-6">
-                  <div className="flex items-end justify-between">
+
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">On-Device Computation</p>
-                      <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Training</h2>
-                      <p className="text-sm text-on-surface-variant mt-1">
-                        {training?.active
-                          ? `Epoch ${training.epoch}/${training.total_epochs}`
-                          : training?.status === 'complete' ? 'Complete' : 'Starting...'}
-                      </p>
+                      <h2 className="font-headline text-4xl font-extrabold text-primary tracking-tighter">Training</h2>
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        {training?.active && <>
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-tertiary-fixed-dim animate-pulse" style={{ boxShadow: '0 0 6px #88d982' }} />
+                            <span className="font-label text-xs font-bold tracking-wider text-on-tertiary-fixed-variant">LIVE</span>
+                          </span>
+                          <span className="text-sm text-on-surface-variant">
+                            Epoch {training.epoch} / {training.total_epochs}
+                          </span>
+                          {training.metrics?.train_loss != null && (
+                            <span className="text-sm text-on-surface-variant font-mono">
+                              loss {training.metrics.train_loss.toFixed(4)}
+                            </span>
+                          )}
+                        </>}
+                        {!training && <p className="text-sm text-on-surface-variant">Initializing…</p>}
+                        {training && !training.active && training.status === 'complete' && (
+                          <span className="flex items-center gap-1.5 text-on-tertiary-fixed-variant font-bold text-sm">
+                            <span className="material-symbols-outlined text-base">check_circle</span>
+                            Complete
+                          </span>
+                        )}
+                      </div>
                     </div>
                     {training?.active && (
                       <button onClick={stopTraining}
-                        className="px-5 py-2 border-2 border-error text-error font-bold text-sm rounded-md hover:bg-error-container transition-colors flex items-center gap-2">
+                        className="shrink-0 px-5 py-2 border-2 border-error text-error font-bold text-sm rounded-md hover:bg-error-container/30 transition-colors flex items-center gap-2">
                         <span className="material-symbols-outlined text-base">stop</span>
                         Stop
                       </button>
                     )}
                   </div>
 
-                  {training && (
-                    <div className="bg-surface-container-low p-6 rounded-xl">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="font-label text-xs uppercase tracking-widest text-on-surface-variant">Epoch Progress</span>
-                        <span className="font-label text-xs font-bold text-primary">
-                          {training.total_epochs > 0 ? `${Math.round((training.epoch / training.total_epochs) * 100)}%` : '0%'}
+                  {/* Progress bar */}
+                  {training ? (
+                    <div className="bg-surface-container-low p-5 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant">Progress</span>
+                        <span className="font-mono text-xs font-bold text-primary">
+                          {training.epoch ?? 0} / {training.total_epochs ?? '?'} epochs
+                          {training.total_epochs > 0 && ` · ${Math.round((training.epoch / training.total_epochs) * 100)}%`}
                         </span>
                       </div>
-                      <div className="h-1.5 bg-surface-container rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-300"
+                      <div className="h-2 bg-surface-container rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500"
                           style={{
                             width: `${training.total_epochs > 0 ? (training.epoch / training.total_epochs) * 100 : 0}%`,
-                            background: training.active ? '#00193c' : training.status === 'complete' ? '#88d982' : '#ba1a1a',
+                            background: training.active
+                              ? 'linear-gradient(90deg, #00193c, #24467c)'
+                              : training.status === 'complete' ? '#88d982' : '#ba1a1a',
                           }} />
                       </div>
                     </div>
-                  )}
-
-                  {training?.metrics && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <MetricBox label="Train Loss" value={training.metrics.train_loss?.toFixed(4)} mono />
-                      <MetricBox label="Val Loss" value={training.metrics.val_loss?.toFixed(4)} mono />
-                      <MetricBox label="Accuracy" value={training.metrics.accuracy ? `${(training.metrics.accuracy * 100).toFixed(1)}%` : '—'} mono />
-                      <MetricBox label="F1 Score" value={training.metrics.f1?.toFixed(3)} mono />
+                  ) : (
+                    <div className="bg-surface-container-low p-8 rounded-xl flex items-center gap-4 text-on-surface-variant">
+                      <span className="material-symbols-outlined animate-spin text-2xl text-primary">progress_activity</span>
+                      <div>
+                        <p className="font-bold text-sm text-primary">Waiting for first epoch…</p>
+                        <p className="text-xs mt-0.5">The training loop is starting up. Metrics will appear shortly.</p>
+                      </div>
                     </div>
                   )}
 
-                  {trainHistory.length > 2 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="bg-surface-container-low p-6 rounded-xl">
-                        <MiniChart data={trainHistory.map(h => h.val_loss)} color="#00193c" height={90} label="Validation Loss" />
-                      </div>
-                      <div className="bg-surface-container-low p-6 rounded-xl">
-                        <MiniChart data={trainHistory.map(h => h.accuracy)} color="#7b41b3" height={90} label="Accuracy" />
-                      </div>
+                  {/* Live metric cards */}
+                  {training?.metrics && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <MetricBox label="Train Loss" value={training.metrics.train_loss?.toFixed(4)} mono />
+                      <MetricBox label="Val Loss"   value={training.metrics.val_loss?.toFixed(4)}   mono />
+                      <MetricBox label="Accuracy"   value={training.metrics.accuracy != null ? `${(training.metrics.accuracy * 100).toFixed(1)}%` : '—'} mono />
+                      <MetricBox label="F1 Score"   value={training.metrics.f1?.toFixed(3)} mono />
+                    </div>
+                  )}
+
+                  {/* Charts */}
+                  {trainHistory.length >= 2 ? (
+                    <div className="space-y-4">
+                      <TrainingChart
+                        title="Loss History"
+                        series={[
+                          { label: 'Train Loss', color: '#00193c', data: trainHistory.map(h => h.train_loss) },
+                          { label: 'Val Loss',   color: '#7b41b3', data: trainHistory.map(h => h.val_loss) },
+                        ]}
+                      />
+                      <TrainingChart
+                        title="Accuracy & F1"
+                        series={[
+                          { label: 'Accuracy', color: '#005312', data: trainHistory.map(h => h.accuracy) },
+                          { label: 'F1 Score', color: '#24467c', data: trainHistory.map(h => h.f1) },
+                        ]}
+                      />
+                    </div>
+                  ) : training?.metrics && (
+                    <div className="bg-surface-container-low p-6 rounded-xl flex items-center gap-3 text-on-surface-variant">
+                      <span className="material-symbols-outlined text-outline">bar_chart</span>
+                      <p className="text-sm">Charts will appear after 2 epochs of data.</p>
                     </div>
                   )}
                 </div>
@@ -980,13 +1102,21 @@ export default function App() {
                   </div>
 
                   {trainHistory.length > 2 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <div className="bg-surface-container-low p-6 rounded-xl">
-                        <MiniChart data={trainHistory.map(h => h.train_loss)} color="#00193c" height={100} label="Train Loss (full history)" />
-                      </div>
-                      <div className="bg-surface-container-low p-6 rounded-xl">
-                        <MiniChart data={trainHistory.map(h => h.accuracy)} color="#88d982" height={100} label="Accuracy (full history)" />
-                      </div>
+                    <div className="space-y-4">
+                      <TrainingChart
+                        title="Loss History"
+                        series={[
+                          { label: 'Train Loss', color: '#00193c', data: trainHistory.map(h => h.train_loss) },
+                          { label: 'Val Loss', color: '#7b41b3', data: trainHistory.map(h => h.val_loss).filter(v => v != null) },
+                        ]}
+                      />
+                      <TrainingChart
+                        title="Accuracy & F1"
+                        series={[
+                          { label: 'Accuracy', color: '#005312', data: trainHistory.map(h => h.accuracy) },
+                          { label: 'F1 Score', color: '#88d982', data: trainHistory.map(h => h.f1).filter(v => v != null) },
+                        ]}
+                      />
                     </div>
                   )}
 
