@@ -11,6 +11,40 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 
 const ML_API = '' // proxied through vite dev server
 
+// ── Suggested questions per stage (non-technical audience) ───
+const STAGE_QUESTIONS = {
+  scan:    [
+    'Is my dataset large enough to train a model?',
+    'Are there any red flags I should know about?',
+    'What format does my data need to be in?',
+  ],
+  preview: [
+    'Which column should be my prediction target?',
+    'Is the data balanced enough to train on?',
+    'Should I be worried about the missing values?',
+  ],
+  clean:   [
+    'Should I run the cleanup before training?',
+    'What happens if I skip the cleanup step?',
+    'Will cleanup remove too many of my records?',
+  ],
+  config:  [
+    'Which model type should I pick for my data?',
+    'What do these settings actually do?',
+    'What are the safest settings to start with?',
+  ],
+  train:   [
+    'Is my training going well so far?',
+    'What does the loss curve mean?',
+    'Should I stop early or let it finish?',
+  ],
+  eval:    [
+    'Are these results good enough to use clinically?',
+    'What does the accuracy score actually mean?',
+    'What should I do next with this model?',
+  ],
+}
+
 const STAGES = [
   { id: 'scan',    icon: 'biotech',                  label: 'Scan',      desc: 'Point to your local data directory' },
   { id: 'preview', icon: 'visibility',               label: 'Preview',   desc: 'Inspect and understand your dataset' },
@@ -19,6 +53,63 @@ const STAGES = [
   { id: 'train',   icon: 'model_training',           label: 'Training',  desc: 'On-device model training' },
   { id: 'eval',    icon: 'analytics',                label: 'Evaluate',  desc: 'Performance assessment' },
 ]
+
+// ── Markdown renderer for AI messages ────────────────────────
+function MarkdownMessage({ text }) {
+  const renderInline = (str) => {
+    const regex = /(\*\*(.+?)\*\*|\*(.+?)\*|`(.+?)`)/g
+    const parts = []
+    let last = 0, m, k = 0
+    while ((m = regex.exec(str)) !== null) {
+      if (m.index > last) parts.push(str.slice(last, m.index))
+      if (m[2]) parts.push(<strong key={k++} className="font-semibold text-on-primary">{m[2]}</strong>)
+      else if (m[3]) parts.push(<em key={k++} className="italic">{m[3]}</em>)
+      else if (m[4]) parts.push(<code key={k++} className="bg-white/20 px-1 rounded font-mono text-[10px]">{m[4]}</code>)
+      last = regex.lastIndex
+    }
+    if (last < str.length) parts.push(str.slice(last))
+    return parts.length === 0 ? str : parts
+  }
+
+  const lines = text.split('\n')
+  const result = []
+  let listItems = null
+  let listOrdered = false
+
+  const flushList = () => {
+    if (!listItems) return
+    const Tag = listOrdered ? 'ol' : 'ul'
+    result.push(
+      <Tag key={result.length} className={`${listOrdered ? 'list-decimal' : 'list-disc'} ml-4 space-y-0.5 my-1`}>
+        {listItems.map((item, i) => <li key={i}>{renderInline(item)}</li>)}
+      </Tag>
+    )
+    listItems = null
+  }
+
+  lines.forEach((line, i) => {
+    if (/^#{1,3}\s/.test(line)) {
+      flushList()
+      result.push(<p key={i} className="font-semibold text-secondary-fixed-dim mt-2 mb-0.5">{line.replace(/^#{1,3}\s/, '')}</p>)
+    } else if (/^[-*•]\s/.test(line)) {
+      if (listOrdered || !listItems) { flushList(); listItems = []; listOrdered = false }
+      listItems.push(line.slice(2).trim())
+    } else if (/^\d+\.\s/.test(line)) {
+      if (!listOrdered || !listItems) { flushList(); listItems = []; listOrdered = true }
+      listItems.push(line.replace(/^\d+\.\s/, ''))
+    } else if (/^---+$/.test(line.trim())) {
+      flushList()
+      result.push(<hr key={i} className="border-white/10 my-1.5" />)
+    } else if (line.trim() === '') {
+      flushList()
+    } else {
+      flushList()
+      result.push(<p key={i} className="leading-relaxed">{renderInline(line)}</p>)
+    }
+  })
+  flushList()
+  return <div className="space-y-0.5 text-xs text-on-primary-container">{result}</div>
+}
 
 // ── Training history chart ───────────────────────────────────
 // series = [{ label, color, data: number[] }]
@@ -603,6 +694,13 @@ export default function App() {
                     </>}
                   </div>
 
+                  {/* Inline AI ask chips */}
+                  <AskChips questions={[
+                    'Is my dataset large enough to get useful results?',
+                    'Which column should be my prediction target?',
+                    'Are there any red flags I should address?',
+                  ]} onAsk={askAI} />
+
                   {dataset.type === 'tabular' && dataset.preview && (
                     <div className="bg-surface-container-low p-6 rounded-xl">
                       <h3 className="font-headline font-bold text-primary text-sm mb-4 flex items-center gap-2">
@@ -690,6 +788,11 @@ export default function App() {
                         </p>
                       </div>
                     )}
+
+                    <AskChips questions={[
+                      'Should I run the cleanup or will it remove too much data?',
+                      'What does imputing missing values mean?',
+                    ]} onAsk={askAI} />
 
                     <div className="flex gap-3 pt-2">
                       <button onClick={runCleanup}
@@ -966,13 +1069,11 @@ export default function App() {
                     </div>
                   )}
 
-                  <div className="flex gap-3">
-                    <button onClick={() => askAI('What model architecture and hyperparameters do you recommend for this dataset?')}
-                      className="px-5 py-2 bg-surface-container-high text-primary font-bold text-sm rounded-md hover:bg-surface-container-highest transition-colors flex items-center gap-2">
-                      <span className="material-symbols-outlined text-base">psychology</span>
-                      ASK AI
-                    </button>
-                  </div>
+                  <AskChips questions={[
+                    'Which model type should I pick for my data?',
+                    'What are the safest settings to start with?',
+                    'How many epochs do I actually need?',
+                  ]} onAsk={askAI} />
                 </div>
               )}
 
@@ -1120,6 +1221,12 @@ export default function App() {
                     </div>
                   )}
 
+                  <AskChips questions={[
+                    'Are these results good enough to use with real patients?',
+                    'What does the accuracy score mean in practice?',
+                    'What should I do next with this model?',
+                  ]} onAsk={askAI} />
+
                   <div className="flex gap-3 pt-2">
                     <a
                       href="/model/download"
@@ -1150,34 +1257,62 @@ export default function App() {
             <div className="absolute -right-16 -top-16 w-48 h-48 bg-secondary rounded-full blur-[60px] opacity-20 pointer-events-none" />
             <div className="absolute -left-8 bottom-0 w-24 h-24 bg-secondary-fixed-dim rounded-full blur-[50px] opacity-10 pointer-events-none" />
 
-            <div className="relative z-10 flex items-center gap-3 px-6 py-4 border-b border-on-primary-fixed-variant/30">
-              <span className="material-symbols-outlined text-secondary-fixed-dim">psychology</span>
-              <h3 className="font-headline font-bold text-base">AI Co-Pilot</h3>
-              {aiLoading && (
-                <span className="material-symbols-outlined text-secondary-fixed-dim text-sm ml-auto animate-spin">progress_activity</span>
-              )}
-              {!aiLoading && (
-                <span className="font-label text-[10px] font-bold tracking-wider text-on-primary-container ml-auto">Qwen 2.5</span>
-              )}
+            <div className="relative z-10 flex items-center gap-3 px-5 py-4 border-b border-on-primary-fixed-variant/30">
+              <span className="material-symbols-outlined text-secondary-fixed-dim text-xl">psychology</span>
+              <div>
+                <h3 className="font-headline font-bold text-sm leading-tight">AI Co-Pilot</h3>
+                <p className="font-label text-[10px] text-on-primary-container leading-tight">Plain-language guidance</p>
+              </div>
+              {aiLoading
+                ? <div className="ml-auto w-4 h-4 border-2 border-secondary-fixed-dim border-t-transparent rounded-full animate-spin" />
+                : <span className="font-label text-[10px] font-bold tracking-wider text-on-primary-container ml-auto opacity-60">Qwen 2.5</span>
+              }
             </div>
 
-            <div ref={aiChatRef} className="relative z-10 flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+            <div ref={aiChatRef} className="relative z-10 flex-1 overflow-y-auto p-4 flex flex-col gap-2.5">
+
+              {/* Empty state: show suggested questions for current stage */}
               {aiMessages.length === 0 && (
-                <div className="text-xs text-on-primary-container text-center px-4 py-10 leading-relaxed">
-                  The AI co-pilot will analyze your data and provide recommendations as you progress through the pipeline.
+                <div className="space-y-3 pt-2">
+                  <p className="font-label text-[10px] uppercase tracking-widest text-on-primary-container/60 text-center">Ask me anything</p>
+                  {(STAGE_QUESTIONS[STAGES[stage].id] || []).map((q, i) => (
+                    <button key={i} onClick={() => askAI(q)} disabled={aiLoading}
+                      className="w-full text-left px-3 py-2.5 rounded-xl bg-white/8 border border-white/12 text-xs text-on-primary-container hover:bg-white/16 hover:text-on-primary transition-colors leading-snug disabled:opacity-40">
+                      <span className="material-symbols-outlined text-[13px] mr-1.5 align-text-bottom opacity-60">help_outline</span>
+                      {q}
+                    </button>
+                  ))}
                 </div>
               )}
+
+              {/* Messages */}
               {aiMessages.map((m, i) => (
-                <div key={i} className={`px-3 py-2.5 text-xs leading-relaxed whitespace-pre-wrap break-words ${
+                <div key={i} className={`px-3 py-2.5 rounded-xl break-words ${
                   m.role === 'user'
-                    ? 'bg-white/10 rounded-xl rounded-br-sm self-end max-w-[88%] text-on-primary'
+                    ? 'bg-white/12 rounded-br-sm self-end max-w-[90%] text-xs text-on-primary'
                     : m.role === 'system'
-                    ? 'bg-white/5 rounded-lg self-center text-on-primary-container border border-white/10 max-w-full text-center'
-                    : 'bg-white/5 rounded-xl rounded-tl-sm self-start max-w-[88%] text-on-primary-container border border-white/10'
+                    ? 'bg-white/5 rounded-lg self-center text-[11px] text-on-primary-container border border-white/10 max-w-full text-center'
+                    : 'bg-white/6 rounded-tl-sm self-start max-w-[95%] border border-white/10'
                 }`}>
-                  {m.text}
+                  {m.role === 'ai'
+                    ? <MarkdownMessage text={m.text} />
+                    : <span className="text-xs leading-relaxed">{m.text}</span>
+                  }
                 </div>
               ))}
+
+              {/* Follow-up suggestions after AI responds */}
+              {!aiLoading && aiMessages.length > 0 && aiMessages[aiMessages.length - 1].role === 'ai' && (
+                <div className="space-y-1.5 pt-1 border-t border-white/8">
+                  <p className="font-label text-[9px] uppercase tracking-widest text-on-primary-container/50 pt-1">Follow-up</p>
+                  {(STAGE_QUESTIONS[STAGES[stage].id] || []).slice(0, 2).map((q, i) => (
+                    <button key={i} onClick={() => askAI(q)} disabled={aiLoading}
+                      className="w-full text-left px-2.5 py-2 rounded-lg bg-white/6 border border-white/10 text-[11px] text-on-primary-container hover:bg-white/14 hover:text-on-primary transition-colors leading-snug">
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="relative z-10 p-4 border-t border-on-primary-fixed-variant/30">
@@ -1190,8 +1325,8 @@ export default function App() {
                       setAiInput('')
                     }
                   }}
-                  placeholder="Ask the AI co-pilot..."
-                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-on-primary text-xs placeholder:text-on-primary-container focus:outline-none focus:border-secondary-fixed-dim"
+                  placeholder="Type your question..."
+                  className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-on-primary text-xs placeholder:text-on-primary-container/60 focus:outline-none focus:border-secondary-fixed-dim"
                 />
                 <button
                   onClick={() => { if (aiInput.trim()) { askAI(aiInput); setAiInput('') } }}
@@ -1218,6 +1353,23 @@ export default function App() {
 
 
 // ── Small reusable pieces ───────────────────────────────────
+
+function AskChips({ questions, onAsk }) {
+  return (
+    <div className="flex flex-wrap gap-2 py-1">
+      <span className="flex items-center gap-1 text-[11px] text-on-surface-variant font-label">
+        <span className="material-symbols-outlined text-sm text-secondary">psychology</span>
+        Ask AI:
+      </span>
+      {questions.map((q, i) => (
+        <button key={i} onClick={() => onAsk(q)}
+          className="px-3 py-1.5 rounded-full bg-surface-container border border-secondary/20 text-xs text-secondary font-medium hover:bg-secondary hover:text-on-secondary transition-colors">
+          {q}
+        </button>
+      ))}
+    </div>
+  )
+}
 
 function MetricBox({ label, value, mono, large, warn }) {
   return (
