@@ -4,7 +4,7 @@
 
 MedML Forge is a full ML pipeline for doctors and clinical researchers with no machine learning background required. Upload a dataset, let the AI guide you through cleanup and configuration, train a model with live metrics, and manage your model library — all running locally on your hardware.
 
-> Built for [MLH Global Hackathon 2026](https://devpost.com/software/medml)
+> Built for [Claude Builders TCD Hackathon 2026](https://devpost.com/software/medml)
 
 ---
 
