@@ -633,11 +633,11 @@ export default function App() {
 
               {/* STAGE 3: CONFIGURE */}
               {stage === 3 && (
-                <div className="fade-up space-y-6">
-                  <div className="flex items-end justify-between">
+                <div className="fade-up space-y-8">
+                  <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                     <div>
                       <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Configuration Engine</p>
-                      <h2 className="font-headline text-3xl font-extrabold text-primary tracking-tighter">Hyperparameter Calibration</h2>
+                      <h2 className="font-headline text-4xl font-extrabold text-primary tracking-tighter">Calibrate Parameters</h2>
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => setTrainConfig({ epochs: 50, lr: 0.001, batch_size: 32, model_type: 'auto', target_column: '' })}
@@ -652,89 +652,18 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Core sliders */}
-                  <div className="bg-surface-container-low p-8 rounded-xl space-y-8">
-                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4">
-                      <span className="material-symbols-outlined text-primary">tune</span>
-                      <h3 className="font-headline text-lg font-bold text-primary">Core Model Sensitivity</h3>
-                    </div>
-
-                    {/* Learning rate */}
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-baseline">
-                        <label className="font-headline font-bold text-primary text-sm flex items-center gap-2">
-                          Clinical Sensitivity
-                          <span className="font-label text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded tracking-tighter">(LEARNING RATE)</span>
-                        </label>
-                        <span className="font-label font-bold text-primary">{trainConfig.lr}</span>
-                      </div>
-                      <input type="range" className="w-full h-1"
-                        min="0.0001" max="0.1" step="0.0001"
-                        value={trainConfig.lr}
-                        onChange={e => setTrainConfig(c => ({ ...c, lr: parseFloat(e.target.value) }))}
-                      />
-                      <div className="bg-surface p-4 rounded-lg flex items-start gap-3 border-l-4 border-primary">
-                        <span className="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
-                        <p className="text-xs text-on-surface-variant leading-relaxed">Lower sensitivity allows for more stable, long-term pattern recognition. Recommended for longitudinal patient studies.</p>
-                      </div>
-                    </div>
-
-                    {/* Epochs */}
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-baseline">
-                        <label className="font-headline font-bold text-primary text-sm flex items-center gap-2">
-                          Diagnostic Depth
-                          <span className="font-label text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded tracking-tighter">(EPOCHS)</span>
-                        </label>
-                        <span className="font-label font-bold text-primary">{trainConfig.epochs}</span>
-                      </div>
-                      <input type="range" className="w-full h-1"
-                        min="10" max="1000" step="10"
-                        value={trainConfig.epochs}
-                        onChange={e => setTrainConfig(c => ({ ...c, epochs: parseInt(e.target.value) }))}
-                      />
-                      <div className="bg-surface p-4 rounded-lg flex items-start gap-3 border-l-4 border-primary">
-                        <span className="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
-                        <p className="text-xs text-on-surface-variant leading-relaxed">How many times the model reviews each clinical record. Higher depth increases comprehension but risks overfitting to rare cases.</p>
-                      </div>
-                    </div>
-
-                    {/* Batch size */}
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-baseline">
-                        <label className="font-headline font-bold text-primary text-sm flex items-center gap-2">
-                          Sample Volume
-                          <span className="font-label text-[10px] text-on-surface-variant bg-surface-container px-2 py-0.5 rounded tracking-tighter">(BATCH SIZE)</span>
-                        </label>
-                        <span className="font-label font-bold text-primary">{trainConfig.batch_size}</span>
-                      </div>
-                      <input type="range" className="w-full h-1"
-                        min="16" max="512" step="16"
-                        value={trainConfig.batch_size}
-                        onChange={e => setTrainConfig(c => ({ ...c, batch_size: parseInt(e.target.value) }))}
-                      />
-                      <div className="bg-surface p-4 rounded-lg flex items-start gap-3 border-l-4 border-primary">
-                        <span className="material-symbols-outlined text-primary text-sm mt-0.5">info</span>
-                        <p className="text-xs text-on-surface-variant leading-relaxed">Number of records analyzed simultaneously for each step. Balances computational load with training smoothness.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Model + target selects */}
-                  <div className="bg-surface-container-low p-8 rounded-xl">
-                    <div className="flex items-center gap-3 border-b border-outline-variant/20 pb-4 mb-6">
-                      <span className="material-symbols-outlined text-primary">settings</span>
-                      <h3 className="font-headline text-lg font-bold text-primary">Model Parameters</h3>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                      <ConfigField label="Target Column" value={trainConfig.target_column}
-                        onChange={v => setTrainConfig(c => ({ ...c, target_column: v }))}
-                        options={scanResult?.summary?.target_candidates}
-                        placeholder="auto-detect" />
-                      <ConfigField label="Model Type" value={trainConfig.model_type}
-                        onChange={v => setTrainConfig(c => ({ ...c, model_type: v }))}
-                        options={['auto', 'mlp', 'cnn', 'resnet', 'logistic']} />
-                    </div>
+                  {/* 2×2 illustrated parameter cards */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <LRCard value={trainConfig.lr} onChange={v => setTrainConfig(c => ({ ...c, lr: v }))} />
+                    <EpochsCard value={trainConfig.epochs} onChange={v => setTrainConfig(c => ({ ...c, epochs: v }))} />
+                    <BatchCard value={trainConfig.batch_size} onChange={v => setTrainConfig(c => ({ ...c, batch_size: v }))} />
+                    <ModelTypeCard
+                      modelType={trainConfig.model_type}
+                      targetColumn={trainConfig.target_column}
+                      targetOptions={scanResult?.summary?.target_candidates}
+                      onModelChange={v => setTrainConfig(c => ({ ...c, model_type: v }))}
+                      onTargetChange={v => setTrainConfig(c => ({ ...c, target_column: v }))}
+                    />
                   </div>
 
                   {/* Feature Selection */}
@@ -744,9 +673,12 @@ export default function App() {
                         <div className="flex items-center gap-3">
                           <span className="material-symbols-outlined text-secondary">account_tree</span>
                           <h3 className="font-headline text-lg font-bold text-primary">
-                            Explainable Selection
+                            Feature Selection
                             {selectedFeatures.length > 0 && (
                               <span className="ml-2 text-sm text-secondary font-normal">{selectedFeatures.length} selected</span>
+                            )}
+                            {selectedFeatures.length === 0 && (
+                              <span className="ml-2 text-sm text-on-surface-variant font-normal">all columns</span>
                             )}
                           </h3>
                         </div>
@@ -758,70 +690,151 @@ export default function App() {
                                   ? 'bg-surface-container-lowest text-on-surface shadow-sm'
                                   : 'text-on-surface-variant'
                               }`}>
-                              {m === 'auto' ? 'Auto (AI)' : 'Manual'}
+                              {m === 'auto' ? '⚡ Auto (AI)' : '✋ Manual'}
                             </button>
                           ))}
                         </div>
                       </div>
 
                       {featureMode === 'auto' ? (
-                        <div className="space-y-4">
-                          <p className="text-xs text-on-surface-variant">
-                            Runs PyImpetus (PIMP) statistical importance testing, falling back to Random Forest if not installed.
-                          </p>
+                        <div className="space-y-5">
+                          {/* Info banner */}
+                          <div className="flex items-start gap-3 p-4 bg-secondary-fixed/30 rounded-xl border border-secondary/20">
+                            <span className="material-symbols-outlined text-secondary text-base mt-0.5 shrink-0">psychology</span>
+                            <div className="space-y-1">
+                              <p className="text-xs font-bold text-primary">Statistical importance testing</p>
+                              <p className="text-xs text-on-surface-variant leading-relaxed">
+                                Uses <strong>PyImpetus (PIMP)</strong> — a permutation-based method — to identify features that genuinely improve predictions.
+                                Falls back to <strong>Random Forest importance</strong> if PyImpetus isn't installed.
+                                Only numeric columns are evaluated; the target column is automatically excluded.
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Requirements check */}
+                          {!trainConfig.target_column && !scanResult?.summary?.target_candidates?.length && (
+                            <div className="flex items-start gap-3 p-3 bg-error-container/30 rounded-xl border border-error/20">
+                              <span className="material-symbols-outlined text-error text-sm mt-0.5 shrink-0">warning</span>
+                              <p className="text-xs text-error leading-relaxed">
+                                No target column set. Set one in the Architecture card above or the backend will auto-detect it during selection.
+                              </p>
+                            </div>
+                          )}
+
                           <button
                             disabled={autoRunning}
                             onClick={async () => {
                               setAutoRunning(true)
+                              setAutoFeatures(null)
                               try {
                                 const res = await fetch('/feature-select', {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ target_column: trainConfig.target_column }),
+                                  body: JSON.stringify({ target_column: trainConfig.target_column || '' }),
                                 })
+                                if (!res.ok) {
+                                  const err = await res.json().catch(() => ({}))
+                                  setAiMessages(prev => [...prev, { role: 'system', text: `Feature selection error: ${err.error || res.statusText}` }])
+                                  return
+                                }
                                 const data = await res.json()
-                                if (data.error) { alert(data.error); return }
+                                if (data.error) {
+                                  setAiMessages(prev => [...prev, { role: 'system', text: `Feature selection error: ${data.error}` }])
+                                  return
+                                }
                                 setAutoFeatures(data)
-                                setSelectedFeatures(data.selected)
-                              } catch(e) { alert('Feature selection failed: ' + e.message) }
-                              finally { setAutoRunning(false) }
+                                // If nothing selected (e.g. all pass threshold), keep all
+                                const sel = data.selected?.length > 0 ? data.selected : data.all_features
+                                setSelectedFeatures(sel)
+                                askAI(`Feature selection complete using ${data.method}. Target: "${data.target_column}". Selected ${sel.length} of ${data.all_features.length} features. Top features: ${sel.slice(0, 5).join(', ')}. What do you recommend next?`)
+                              } catch(e) {
+                                setAiMessages(prev => [...prev, { role: 'system', text: `Feature selection connection error: ${e.message}` }])
+                              } finally {
+                                setAutoRunning(false)
+                              }
                             }}
-                            className={`px-5 py-2 font-bold text-sm rounded-md flex items-center gap-2 transition-all ${
+                            className={`px-5 py-2.5 font-bold text-sm rounded-md flex items-center gap-2 transition-all ${
                               autoRunning
                                 ? 'bg-surface-container text-on-surface-variant cursor-wait'
-                                : 'bg-secondary text-on-secondary hover:opacity-90'
+                                : 'bg-secondary text-on-secondary hover:opacity-90 shadow-sm'
                             }`}>
                             <span className="material-symbols-outlined text-base">
                               {autoRunning ? 'hourglass_empty' : 'play_arrow'}
                             </span>
-                            {autoRunning ? 'Running...' : 'Run Feature Selection'}
+                            {autoRunning ? 'Running analysis…' : 'Run Feature Selection'}
                           </button>
 
-                          {autoFeatures && (
-                            <div>
-                              <p className="text-xs text-on-surface-variant mb-3">
-                                Method: <strong>{autoFeatures.method}</strong> · {autoFeatures.selected.length}/{autoFeatures.all_features.length} features selected
-                              </p>
-                              <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {autoRunning && (
+                            <div className="flex items-center gap-3 p-4 bg-surface-container rounded-xl">
+                              <span className="material-symbols-outlined text-secondary animate-spin text-base">progress_activity</span>
+                              <div>
+                                <p className="text-xs font-bold text-primary">Analysing feature importance…</p>
+                                <p className="text-xs text-on-surface-variant">This may take 30–120 seconds for large datasets.</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {autoFeatures && !autoRunning && (
+                            <div className="space-y-3">
+                              {/* Result header */}
+                              <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-tertiary-fixed/30 rounded-full">
+                                  <span className="material-symbols-outlined text-on-tertiary-fixed-variant text-sm">check_circle</span>
+                                  <span className="font-label text-xs font-bold text-on-tertiary-fixed-variant">
+                                    {selectedFeatures.length}/{autoFeatures.all_features.length} selected
+                                  </span>
+                                </div>
+                                <span className="text-xs text-on-surface-variant">
+                                  Method: <strong>{autoFeatures.method}</strong>
+                                </span>
+                                {autoFeatures.target_column && (
+                                  <span className="text-xs text-on-surface-variant">
+                                    Target: <strong className="font-mono">{autoFeatures.target_column}</strong>
+                                  </span>
+                                )}
+                                <button onClick={() => {
+                                  setSelectedFeatures(autoFeatures.all_features)
+                                }} className="ml-auto text-xs text-secondary hover:underline">Select all</button>
+                                <button onClick={() => {
+                                  setSelectedFeatures(autoFeatures.selected?.length > 0 ? autoFeatures.selected : autoFeatures.all_features)
+                                }} className="text-xs text-secondary hover:underline">Reset to AI picks</button>
+                              </div>
+
+                              {autoFeatures.selected?.length === 0 && (
+                                <div className="flex items-start gap-2 p-3 bg-error-container/30 rounded-xl border border-error/20">
+                                  <span className="material-symbols-outlined text-error text-sm shrink-0 mt-0.5">info</span>
+                                  <p className="text-xs text-error">
+                                    PyImpetus found no statistically significant features at p&lt;0.05. All features have been kept. Consider lowering the significance threshold or using Random Forest mode.
+                                  </p>
+                                </div>
+                              )}
+
+                              {/* Feature list */}
+                              <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
                                 {autoFeatures.all_features.map(feat => {
-                                  const imp = autoFeatures.importances[feat] || 0
-                                  const maxImp = Math.max(...Object.values(autoFeatures.importances))
+                                  const imp = autoFeatures.importances?.[feat] || 0
+                                  const maxImp = Math.max(...Object.values(autoFeatures.importances || { _: 1 }))
                                   const isSelected = selectedFeatures.includes(feat)
+                                  const isAIPick = autoFeatures.selected?.includes(feat)
                                   return (
                                     <div key={feat} onClick={() => setSelectedFeatures(prev =>
                                       prev.includes(feat) ? prev.filter(f => f !== feat) : [...prev, feat]
                                     )} className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border ${
                                       isSelected
-                                        ? 'border-on-tertiary-fixed-variant bg-tertiary-fixed/10'
-                                        : 'border-outline-variant/30 bg-surface-container-lowest'
+                                        ? 'border-on-tertiary-fixed-variant/50 bg-tertiary-fixed/15'
+                                        : 'border-outline-variant/30 bg-surface-container-lowest hover:bg-surface-container'
                                     }`}>
-                                      <input type="checkbox" readOnly checked={isSelected} className="rounded" />
-                                      <span className="text-xs font-mono flex-1 text-on-surface">{feat}</span>
-                                      <div className="w-20 h-1.5 bg-surface-container rounded-full overflow-hidden">
-                                        <div className="h-full bg-on-tertiary-fixed-variant rounded-full"
-                                          style={{ width: `${(imp / maxImp) * 100}%` }} />
+                                      <input type="checkbox" readOnly checked={isSelected}
+                                        className="rounded shrink-0 pointer-events-none" />
+                                      <span className="text-xs font-mono flex-1 text-on-surface min-w-0 truncate">{feat}</span>
+                                      {isAIPick && (
+                                        <span className="font-label text-[9px] bg-secondary/10 text-secondary px-1.5 py-0.5 rounded shrink-0">AI pick</span>
+                                      )}
+                                      <div className="w-16 h-1.5 bg-surface-container rounded-full overflow-hidden shrink-0">
+                                        <div className="h-full bg-on-tertiary-fixed-variant rounded-full transition-all"
+                                          style={{ width: `${maxImp > 0 ? (imp / maxImp) * 100 : 0}%` }} />
                                       </div>
-                                      <span className="text-[10px] text-on-surface-variant font-mono w-10 text-right">{imp.toFixed(3)}</span>
+                                      <span className="text-[10px] text-on-surface-variant font-mono w-11 text-right shrink-0">{imp.toFixed(3)}</span>
                                     </div>
                                   )
                                 })}
@@ -1068,26 +1081,338 @@ function MetricBox({ label, value, mono, large, warn }) {
   )
 }
 
-function ConfigField({ label, value, onChange, type = 'text', options, placeholder, step }) {
+// ── Illustrated parameter cards for the Configure stage ─────
+
+function LRCard({ value, onChange }) {
+  const min = 0.0001, max = 0.1
+  const pct = ((value - min) / (max - min)) * 100
+  const zone = value < 0.0008 ? 'cautious' : value > 0.015 ? 'aggressive' : 'optimal'
+  const z = {
+    cautious:   { label: 'Cautious — very stable', color: '#7b41b3', bg: '#f0dbff40', icon: 'moving',       desc: 'Tiny steps per update. Stable but slow — may need more epochs to converge.' },
+    optimal:    { label: 'Optimal range',           color: '#005312', bg: '#a3f69c30', icon: 'check_circle', desc: 'Balanced convergence speed and stability. Works well for most clinical datasets.' },
+    aggressive: { label: 'Aggressive — unstable risk', color: '#ba1a1a', bg: '#ffdad640', icon: 'warning',  desc: 'Large steps risk overshooting the loss minimum. Monitor training loss closely.' },
+  }[zone]
+
+  // Gradient descent path SVG
+  const W = 280, H = 88
+  const stepSize = 0.06 + (value / max) * 0.74
+  let pos = 0.18
+  const steps = []
+  for (let i = 0; i < 6; i++) {
+    steps.push(pos)
+    const grad = 2 * (pos - 0.5)
+    pos = Math.min(0.97, Math.max(0.03, pos - stepSize * grad))
+  }
+  const toSVG = p => ({ x: p * W, y: H - 10 - Math.pow(p - 0.5, 2) * (H - 24) })
+  const pts = steps.map(toSVG)
+
+  // Parabola path
+  const parabola = Array.from({ length: 50 }, (_, i) => {
+    const p = i / 49
+    const { x, y } = toSVG(p)
+    return `${x},${y}`
+  }).join(' ')
+
   return (
-    <div>
-      <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest mb-2">{label}</p>
-      {options ? (
-        <select
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          className="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm focus:outline-none focus:border-primary"
-        >
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-      ) : (
-        <input
-          type={type} value={value} step={step}
-          onChange={e => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={`w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm focus:outline-none focus:border-primary ${type === 'number' ? 'font-mono' : ''}`}
+    <div className="bg-surface-container-low p-6 rounded-xl space-y-4 border border-outline-variant/10 hover:border-outline-variant/30 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="material-symbols-outlined text-primary text-base">trending_down</span>
+            <h3 className="font-headline font-bold text-primary">Learning Rate</h3>
+            <span className="font-label text-[9px] bg-surface-container text-on-surface-variant px-2 py-0.5 rounded tracking-wider">LR</span>
+          </div>
+          <p className="text-xs text-on-surface-variant">Step size per gradient descent update.</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-mono font-black text-2xl text-primary leading-none">{value.toFixed(4)}</p>
+          <p className="font-label text-[10px] uppercase tracking-wider mt-0.5" style={{ color: z.color }}>{zone}</p>
+        </div>
+      </div>
+
+      {/* Illustration */}
+      <div className="bg-surface rounded-xl overflow-hidden border border-outline-variant/20">
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+          {/* Zone shading */}
+          <rect x={0} y={0} width={W * 0.18} height={H} fill="#f0dbff" opacity="0.45" />
+          <rect x={W * 0.18} y={0} width={W * 0.62} height={H} fill="#a3f69c" opacity="0.18" />
+          <rect x={W * 0.80} y={0} width={W * 0.20} height={H} fill="#ffdad6" opacity="0.45" />
+          {/* Zone labels */}
+          <text x="5" y="11" fontSize="7" fill="#622599" opacity="0.75" fontWeight="600">slow</text>
+          <text x={W * 0.42} y="11" fontSize="7" fill="#005312" opacity="0.75" fontWeight="600">optimal</text>
+          <text x={W * 0.82} y="11" fontSize="7" fill="#ba1a1a" opacity="0.75" fontWeight="600">fast</text>
+          {/* Minimum dashed line */}
+          <line x1={W / 2} y1={5} x2={W / 2} y2={H} stroke="#43474f" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+          <text x={W / 2 + 3} y="20" fontSize="7" fill="#43474f" opacity="0.5">min</text>
+          {/* Loss curve */}
+          <polyline points={parabola} fill="none" stroke="#c4c6d1" strokeWidth="2" strokeLinecap="round" />
+          {/* Descent path lines */}
+          {pts.slice(0, -1).map((p, i) => (
+            <line key={i} x1={p.x} y1={p.y} x2={pts[i + 1].x} y2={pts[i + 1].y}
+              stroke={z.color} strokeWidth="1.5" opacity={0.9 - i * 0.12} />
+          ))}
+          {/* Descent dots */}
+          {pts.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r={i === 0 ? 5 : 3.5}
+              fill={i === 0 ? z.color : '#fff'} stroke={z.color} strokeWidth="1.5"
+              opacity={1 - i * 0.12} />
+          ))}
+        </svg>
+      </div>
+
+      {/* Slider */}
+      <div className="space-y-1.5">
+        <input type="range" min={min} max={max} step={0.0001} value={value}
+          onChange={e => onChange(parseFloat(e.target.value))}
+          className="w-full"
+          style={{ background: `linear-gradient(to right, ${z.color} 0%, ${z.color} ${pct}%, #e1e3e4 ${pct}%, #e1e3e4 100%)` }}
         />
-      )}
+        <div className="flex justify-between text-[10px] text-on-surface-variant font-mono">
+          <span>1e-4</span><span className="text-on-surface-variant/60">|</span><span>0.01</span><span className="text-on-surface-variant/60">|</span><span>0.1</span>
+        </div>
+      </div>
+
+      {/* Insight */}
+      <div className="p-3 rounded-xl flex items-start gap-2.5 border" style={{ background: z.bg, borderColor: z.color + '40' }}>
+        <span className="material-symbols-outlined text-sm mt-0.5 shrink-0" style={{ color: z.color }}>{z.icon}</span>
+        <div>
+          <p className="text-xs font-bold leading-none mb-1" style={{ color: z.color }}>{z.label}</p>
+          <p className="text-xs text-on-surface-variant leading-relaxed">{z.desc}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EpochsCard({ value, onChange }) {
+  const min = 10, max = 1000
+  const pct = ((value - min) / (max - min)) * 100
+  const zone = value < 80 ? 'underfit' : value > 600 ? 'overfit' : 'optimal'
+  const z = {
+    underfit: { label: 'Too few — underfitting', color: '#7b41b3', bg: '#f0dbff40', icon: 'show_chart',   desc: 'Not enough iterations. The model hasn\'t learned meaningful clinical patterns yet.' },
+    optimal:  { label: 'Healthy range',          color: '#005312', bg: '#a3f69c30', icon: 'check_circle', desc: 'Good balance of learning depth vs. generalization. Suitable for most tasks.' },
+    overfit:  { label: 'Overfitting risk',        color: '#ba1a1a', bg: '#ffdad640', icon: 'warning',      desc: 'Too many passes. The model may memorize training patients and fail on new ones.' },
+  }[zone]
+
+  // Pre-compute learning curves
+  const W = 280, H = 88, N = 60
+  const trainPts = [], valPts = []
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1)
+    const x = t * W
+    const trainL = 0.82 * Math.exp(-3.2 * t) + 0.06 + 0.015 * Math.sin(t * 18) * Math.exp(-2 * t)
+    const overfit = Math.max(0, t - 0.58) * 0.38
+    const valL = 0.78 * Math.exp(-2.6 * t) + 0.11 + overfit + 0.012 * Math.sin(t * 14) * Math.exp(-t)
+    const sy = v => H - 10 - Math.max(0, Math.min(1, v)) * (H - 22)
+    trainPts.push(`${x},${sy(trainL)}`)
+    valPts.push(`${x},${sy(valL)}`)
+  }
+  const markerX = ((value - min) / (max - min)) * W
+
+  return (
+    <div className="bg-surface-container-low p-6 rounded-xl space-y-4 border border-outline-variant/10 hover:border-outline-variant/30 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="material-symbols-outlined text-primary text-base">repeat</span>
+            <h3 className="font-headline font-bold text-primary">Epochs</h3>
+            <span className="font-label text-[9px] bg-surface-container text-on-surface-variant px-2 py-0.5 rounded tracking-wider">PASSES</span>
+          </div>
+          <p className="text-xs text-on-surface-variant">Full dataset passes during training.</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-mono font-black text-2xl text-primary leading-none">{value}</p>
+          <p className="font-label text-[10px] uppercase tracking-wider mt-0.5" style={{ color: z.color }}>{zone}</p>
+        </div>
+      </div>
+
+      {/* Learning curves SVG */}
+      <div className="bg-surface rounded-xl overflow-hidden border border-outline-variant/20">
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+          {/* Zone backgrounds */}
+          <rect x={0} y={0} width={W * 0.14} height={H} fill="#f0dbff" opacity="0.45" />
+          <rect x={W * 0.14} y={0} width={W * 0.56} height={H} fill="#a3f69c" opacity="0.18" />
+          <rect x={W * 0.70} y={0} width={W * 0.30} height={H} fill="#ffdad6" opacity="0.45" />
+          <text x="4" y="11" fontSize="7" fill="#622599" opacity="0.75" fontWeight="600">under</text>
+          <text x={W * 0.36} y="11" fontSize="7" fill="#005312" opacity="0.75" fontWeight="600">optimal</text>
+          <text x={W * 0.73} y="11" fontSize="7" fill="#ba1a1a" opacity="0.75" fontWeight="600">overfit</text>
+          {/* Val loss */}
+          <polyline points={valPts.join(' ')} fill="none" stroke="#7b41b3" strokeWidth="1.5" strokeLinecap="round" opacity="0.65" />
+          {/* Train loss */}
+          <polyline points={trainPts.join(' ')} fill="none" stroke="#00193c" strokeWidth="2" strokeLinecap="round" />
+          {/* Current epoch marker */}
+          <line x1={markerX} y1={0} x2={markerX} y2={H} stroke={z.color} strokeWidth="2" strokeDasharray="4,3" />
+          <circle cx={markerX} cy={H / 2} r="4.5" fill={z.color} />
+          {/* Legend */}
+          <rect x={W - 58} y={H - 22} width="8" height="3" rx="1.5" fill="#00193c" />
+          <text x={W - 47} y={H - 16} fontSize="7" fill="#43474f">train loss</text>
+          <rect x={W - 58} y={H - 11} width="8" height="3" rx="1.5" fill="#7b41b3" opacity="0.65" />
+          <text x={W - 47} y={H - 5} fontSize="7" fill="#43474f">val loss</text>
+        </svg>
+      </div>
+
+      {/* Slider */}
+      <div className="space-y-1.5">
+        <input type="range" min={min} max={max} step={10} value={value}
+          onChange={e => onChange(parseInt(e.target.value))}
+          className="w-full"
+          style={{ background: `linear-gradient(to right, ${z.color} 0%, ${z.color} ${pct}%, #e1e3e4 ${pct}%, #e1e3e4 100%)` }}
+        />
+        <div className="flex justify-between text-[10px] text-on-surface-variant font-mono">
+          <span>10</span><span className="text-on-surface-variant/60">|</span><span>500</span><span className="text-on-surface-variant/60">|</span><span>1000</span>
+        </div>
+      </div>
+
+      <div className="p-3 rounded-xl flex items-start gap-2.5 border" style={{ background: z.bg, borderColor: z.color + '40' }}>
+        <span className="material-symbols-outlined text-sm mt-0.5 shrink-0" style={{ color: z.color }}>{z.icon}</span>
+        <div>
+          <p className="text-xs font-bold leading-none mb-1" style={{ color: z.color }}>{z.label}</p>
+          <p className="text-xs text-on-surface-variant leading-relaxed">{z.desc}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BatchCard({ value, onChange }) {
+  const min = 16, max = 512
+  const pct = ((value - min) / (max - min)) * 100
+  const zone = value <= 32 ? 'noisy' : value >= 256 ? 'large' : 'balanced'
+  const z = {
+    noisy:    { label: 'Noisy gradients',   color: '#7b41b3', bg: '#f0dbff40', icon: 'graphic_eq',  desc: 'Small batches inject noise that can help escape local minima but slow per-step progress.' },
+    balanced: { label: 'Well balanced',     color: '#005312', bg: '#a3f69c30', icon: 'check_circle', desc: 'Good tradeoff between gradient quality and memory efficiency.' },
+    large:    { label: 'Smooth — less noise', color: '#24467c', bg: '#d7e2ff40', icon: 'timeline',   desc: 'Accurate gradients but may converge to sharper, less generalizable solutions.' },
+  }[zone]
+
+  // Dot grid: 8×8 = 64 total, highlight proportion matching batch size
+  const COLS = 16, ROWS = 4, TOTAL = COLS * ROWS
+  const highlighted = Math.round((value / max) * TOTAL)
+  const W = 280, H = 72
+  const cx = (i) => ((i % COLS) + 0.5) * (W / COLS)
+  const cy = (i) => (Math.floor(i / COLS) + 0.5) * (H / ROWS)
+
+  // Noise waveform: amplitude inversely proportional to batch size
+  const noiseAmp = 1 - (value - min) / (max - min)  // 0..1 (1=max noise)
+  const wavePoints = Array.from({ length: 40 }, (_, i) => {
+    const t = i / 39
+    const x = t * W
+    const noise = (Math.sin(t * 28 + 1) * 0.4 + Math.sin(t * 11) * 0.6) * noiseAmp
+    const y = H / 2 + noise * (H * 0.36)
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+
+  return (
+    <div className="bg-surface-container-low p-6 rounded-xl space-y-4 border border-outline-variant/10 hover:border-outline-variant/30 transition-colors">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="material-symbols-outlined text-primary text-base">dataset</span>
+            <h3 className="font-headline font-bold text-primary">Batch Size</h3>
+            <span className="font-label text-[9px] bg-surface-container text-on-surface-variant px-2 py-0.5 rounded tracking-wider">BATCH</span>
+          </div>
+          <p className="text-xs text-on-surface-variant">Records per gradient update step.</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-mono font-black text-2xl text-primary leading-none">{value}</p>
+          <p className="font-label text-[10px] uppercase tracking-wider mt-0.5" style={{ color: z.color }}>per step</p>
+        </div>
+      </div>
+
+      {/* Dot grid + waveform */}
+      <div className="bg-surface rounded-xl overflow-hidden border border-outline-variant/20">
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet">
+          {/* Dots */}
+          {Array.from({ length: TOTAL }, (_, i) => (
+            <circle key={i} cx={cx(i)} cy={cy(i)} r="3.5"
+              fill={i < highlighted ? z.color : '#e1e3e4'}
+              opacity={i < highlighted ? 0.85 : 0.5}
+            />
+          ))}
+          {/* Gradient noise waveform overlay */}
+          <polyline points={wavePoints} fill="none" stroke={z.color} strokeWidth="1.5"
+            opacity="0.35" strokeLinecap="round" />
+          <text x="6" y={H - 5} fontSize="7.5" fill={z.color} fontWeight="600" opacity="0.8">
+            {highlighted}/{TOTAL} shown · {value} records/step
+          </text>
+        </svg>
+      </div>
+
+      {/* Slider */}
+      <div className="space-y-1.5">
+        <input type="range" min={min} max={max} step={16} value={value}
+          onChange={e => onChange(parseInt(e.target.value))}
+          className="w-full"
+          style={{ background: `linear-gradient(to right, ${z.color} 0%, ${z.color} ${pct}%, #e1e3e4 ${pct}%, #e1e3e4 100%)` }}
+        />
+        <div className="flex justify-between text-[10px] text-on-surface-variant font-mono">
+          <span>16</span><span className="text-on-surface-variant/60">|</span><span>256</span><span className="text-on-surface-variant/60">|</span><span>512</span>
+        </div>
+      </div>
+
+      <div className="p-3 rounded-xl flex items-start gap-2.5 border" style={{ background: z.bg, borderColor: z.color + '40' }}>
+        <span className="material-symbols-outlined text-sm mt-0.5 shrink-0" style={{ color: z.color }}>{z.icon}</span>
+        <div>
+          <p className="text-xs font-bold leading-none mb-1" style={{ color: z.color }}>{z.label}</p>
+          <p className="text-xs text-on-surface-variant leading-relaxed">{z.desc}</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ModelTypeCard({ modelType, targetColumn, targetOptions, onModelChange, onTargetChange }) {
+  const models = [
+    { id: 'auto',     icon: 'auto_awesome',  label: 'Auto',     desc: 'AI picks the best fit' },
+    { id: 'mlp',      icon: 'account_tree',  label: 'MLP',      desc: 'Tabular data' },
+    { id: 'cnn',      icon: 'image_search',  label: 'CNN',      desc: 'Image data' },
+    { id: 'resnet',   icon: 'layers',        label: 'ResNet',   desc: 'Deep images' },
+    { id: 'logistic', icon: 'show_chart',    label: 'Logistic', desc: 'Linear baseline' },
+  ]
+  return (
+    <div className="bg-surface-container-low p-6 rounded-xl space-y-4 border border-outline-variant/10 hover:border-outline-variant/30 transition-colors">
+      <div>
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="material-symbols-outlined text-primary text-base">hub</span>
+          <h3 className="font-headline font-bold text-primary">Architecture</h3>
+        </div>
+        <p className="text-xs text-on-surface-variant">Neural network model for training.</p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {models.map(m => (
+          <button key={m.id} onClick={() => onModelChange(m.id)}
+            className={`p-3 rounded-xl text-left transition-all border ${
+              modelType === m.id
+                ? 'bg-primary border-primary shadow-md'
+                : 'bg-surface-container-lowest border-outline-variant/25 hover:border-outline-variant hover:bg-surface-container'
+            }`}
+          >
+            <span className={`material-symbols-outlined text-xl block mb-1.5 ${modelType === m.id ? 'text-on-primary' : 'text-primary'}`}>
+              {m.icon}
+            </span>
+            <p className={`font-bold text-xs ${modelType === m.id ? 'text-on-primary' : 'text-primary'}`}>{m.label}</p>
+            <p className={`text-[10px] mt-0.5 leading-tight ${modelType === m.id ? 'text-on-primary-container' : 'text-on-surface-variant'}`}>{m.desc}</p>
+          </button>
+        ))}
+      </div>
+
+      <div className="pt-2 border-t border-outline-variant/20 space-y-2">
+        <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Target Column</p>
+        {targetOptions?.length > 0 ? (
+          <select value={targetColumn} onChange={e => onTargetChange(e.target.value)}
+            className="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm focus:outline-none focus:border-primary">
+            <option value="">auto-detect</option>
+            {targetOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input type="text" value={targetColumn} onChange={e => onTargetChange(e.target.value)}
+            placeholder="Column name or leave blank to auto-detect"
+            className="w-full px-3 py-2.5 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-on-surface text-sm focus:outline-none focus:border-primary" />
+        )}
+        <p className="text-[10px] text-on-surface-variant">
+          The column your model will learn to predict. If left blank, the backend auto-detects it.
+        </p>
+      </div>
     </div>
   )
 }
