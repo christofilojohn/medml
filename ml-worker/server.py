@@ -118,6 +118,161 @@ def health():
     })
 
 
+# ── Folder Picker ────────────────────────────────────────────
+@app.route("/pick-folder", methods=["POST"])
+def pick_folder():
+    """Open a native OS folder-picker dialog and return the chosen path."""
+    import subprocess
+    import platform
+
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            # macOS — use AppleScript (no display/thread issues)
+            script = 'POSIX path of (choose folder with prompt "Select Dataset Folder")'
+            result = subprocess.run(
+                ["osascript", "-e", script],
+                capture_output=True, text=True, timeout=120
+            )
+            if result.returncode == 0:
+                folder = result.stdout.strip().rstrip("/")
+                return jsonify({"path": folder})
+            # User cancelled (osascript exits with code 1)
+            return jsonify({"path": None, "cancelled": True})
+
+        elif system == "Linux":
+            # Try zenity (GTK) then kdialog (KDE)
+            for cmd in [
+                ["zenity", "--file-selection", "--directory", "--title=Select Dataset Folder"],
+                ["kdialog", "--getexistingdirectory", os.path.expanduser("~")],
+            ]:
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+                    if result.returncode == 0:
+                        return jsonify({"path": result.stdout.strip()})
+                except FileNotFoundError:
+                    continue
+            # Last resort: tkinter
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            folder = filedialog.askdirectory(title="Select Dataset Folder")
+            root.destroy()
+            return jsonify({"path": folder or None, "cancelled": not folder})
+
+        else:
+            # Windows
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            folder = filedialog.askdirectory(title="Select Dataset Folder")
+            root.destroy()
+            return jsonify({"path": folder or None, "cancelled": not folder})
+
+    except subprocess.TimeoutExpired:
+        return jsonify({"path": None, "cancelled": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Feature Selection ────────────────────────────────────────
+@app.route("/feature-select", methods=["POST"])
+def feature_select():
+    """
+    Auto feature selection via PyImpetus (PIMP) with sklearn RF fallback.
+    Body: { "target_column": "diagnosis" }
+    Returns: { method, all_features, selected, importances }
+    """
+    body = request.json or {}
+    target_col = body.get("target_column", "")
+
+    if not dataset_info.get("loaded"):
+        return jsonify({"error": "No dataset loaded — run /scan first"}), 400
+    if dataset_info.get("type") != "tabular":
+        return jsonify({"error": "Feature selection only available for tabular data"}), 400
+
+    path = dataset_info.get("path", "")
+    main_file = None
+    for ext in [".csv", ".parquet", ".tsv", ".xlsx"]:
+        files = list(Path(path).glob(f"*{ext}")) + list(Path(path).rglob(f"*{ext}"))
+        if files:
+            main_file = max(files, key=lambda f: f.stat().st_size)
+            break
+
+    if not main_file:
+        return jsonify({"error": "No tabular file found"}), 400
+
+    if str(main_file).endswith(".parquet"):
+        df = pd.read_parquet(main_file)
+    elif str(main_file).endswith(".tsv"):
+        df = pd.read_csv(main_file, sep="\t")
+    elif str(main_file).endswith((".xlsx", ".xls")):
+        df = pd.read_excel(main_file)
+    else:
+        df = pd.read_csv(main_file)
+
+    if not target_col or target_col not in df.columns:
+        candidates = dataset_info.get("summary", {}).get("target_candidates", [])
+        target_col = candidates[0] if candidates else df.columns[-1]
+
+    df = df.dropna(subset=[target_col])
+    y_raw = df[target_col]
+    X = df.drop(columns=[target_col])
+
+    le = LabelEncoder()
+    y = le.fit_transform(y_raw)
+
+    numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
+    X_num = X[numeric_cols].fillna(0)
+
+    if len(numeric_cols) == 0:
+        return jsonify({"error": "No numeric feature columns found"}), 400
+
+    # ── Try PyImpetus first ───────────────────────────────────
+    try:
+        from PyImpetus import PIMP
+        add_log("Running PyImpetus (PIMP) feature selection...")
+        model = PIMP(model=None, p_val_thresh=0.05, num_simulations=20,
+                     cv=5, random_state=42, verbose=0)
+        model.fit(X_num.values, y)
+        selected = [col for col, sel in zip(numeric_cols, model.support_) if sel]
+        importances = {col: float(imp)
+                       for col, imp in zip(numeric_cols, model.feature_importances_)}
+        method = "PyImpetus (PIMP)"
+        add_log(f"PyImpetus selected {len(selected)}/{len(numeric_cols)} features")
+
+    except Exception:
+        # ── Fallback: Random Forest importance ────────────────
+        add_log("PyImpetus unavailable — using Random Forest importance")
+        try:
+            from sklearn.ensemble import RandomForestClassifier
+            rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+            rf.fit(X_num.values, y)
+            imps = rf.feature_importances_
+            mean_imp = float(np.mean(imps))
+            selected = [col for col, imp in zip(numeric_cols, imps) if imp >= mean_imp]
+            importances = {col: float(imp) for col, imp in zip(numeric_cols, imps)}
+            method = "Random Forest Importance"
+            add_log(f"RF selected {len(selected)}/{len(numeric_cols)} features (above mean importance)")
+        except Exception as e:
+            return jsonify({"error": f"Feature selection failed: {str(e)}"}), 500
+
+    # Sort importances descending for display
+    sorted_importances = dict(
+        sorted(importances.items(), key=lambda x: x[1], reverse=True)
+    )
+
+    return jsonify({
+        "method": method,
+        "target_column": target_col,
+        "all_features": list(sorted_importances.keys()),
+        "selected": selected,
+        "importances": sorted_importances,
+    })
+
+
 # ── Data Scanning ────────────────────────────────────────────
 @app.route("/scan", methods=["POST"])
 def scan_data():
@@ -360,7 +515,8 @@ def start_training():
         "epochs": 50,
         "model_type": "auto",  // auto | mlp | cnn | resnet | logistic
         "batch_size": 32,
-        "lr": 0.001
+        "lr": 0.001,
+        "feature_columns": ["col1", "col2"]  // null = use all numeric
     }
     """
     if training_state["active"]:
@@ -375,6 +531,7 @@ def start_training():
         "batch_size": body.get("batch_size", 32),
         "lr": body.get("lr", 0.001),
         "val_split": body.get("val_split", 0.2),
+        "feature_columns": body.get("feature_columns", None),  # None = use all numeric
     }
 
     thread = threading.Thread(target=_training_loop, args=(config,), daemon=True)
@@ -470,8 +627,13 @@ def _train_tabular(config):
     num_classes = len(le.classes_)
     add_log(f"Classes: {list(le.classes_)} ({num_classes})")
 
-    # Handle features
+    # Handle features — respect doctor-selected / auto-selected columns
+    feature_columns = config.get("feature_columns")
     numeric_cols = X.select_dtypes(include=[np.number]).columns.tolist()
+    if feature_columns:
+        # Keep only the requested columns that are actually numeric
+        numeric_cols = [c for c in feature_columns if c in numeric_cols]
+        add_log(f"Using {len(numeric_cols)} selected features: {numeric_cols[:8]}{'...' if len(numeric_cols) > 8 else ''}")
     X = X[numeric_cols].fillna(0)
 
     if len(X.columns) == 0:
@@ -725,7 +887,6 @@ You receive dataset metadata (never raw data) and advise on:
 - Augmentation techniques appropriate for medical data
 - Model architecture selection
 - Hyperparameter recommendations
-- When to join federated learning networks
 Be concise and actionable. Use bullet points for recommendations."""
 
     full_prompt = prompt
