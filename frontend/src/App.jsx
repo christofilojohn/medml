@@ -9,7 +9,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 //   All local. Zero patient data leaves the machine.
 // ═══════════════════════════════════════════════════════════════
 
-const ML_API = '' // proxied through vite dev server
 
 // ── Suggested questions per stage (non-technical audience) ───
 const STAGE_QUESTIONS = {
@@ -340,6 +339,10 @@ export default function App() {
   const [autoRunning, setAutoRunning] = useState(false)
   const [selectedFeatures, setSelectedFeatures] = useState([]) // [] = all
 
+  // Continue training
+  const [continueEpochs, setContinueEpochs] = useState(20)
+  const [checkpoint, setCheckpoint] = useState(null) // { metrics } snapshot before continuing
+
   // AI reasoning
   const [aiMessages, setAiMessages] = useState([])
   const [aiLoading, setAiLoading] = useState(false)
@@ -626,50 +629,183 @@ export default function App() {
     if (sseRef.current) sseRef.current.close()
   }
 
+  // Safe fetch helper — always returns parsed JSON or { error } even on HTML responses
+  const fetchJSON = async (url, opts = {}) => {
+    const r = await fetch(url, opts)
+    const text = await r.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      return { error: `Server error ${r.status}: ${text.slice(0, 120)}` }
+    }
+  }
+
+  const subscribeSSE = (onComplete) => {
+    if (sseRef.current) sseRef.current.close()
+    // Small delay so the training thread has time to flip active=true
+    // before the SSE stream checks the state
+    setTimeout(() => {
+      const sse = new EventSource('/train/stream')
+      sseRef.current = sse
+      sse.onmessage = (e) => {
+        const d = JSON.parse(e.data)
+        setTraining(d)
+        if (d.metrics) setTrainHistory(prev => [...prev, d.metrics].slice(-500))
+        if (!d.active && d.status === 'complete') {
+          sse.close()
+          completeStage(4)
+          setStage(5)
+          onComplete(d)
+        }
+      }
+      sse.onerror = () => sse.close()
+    }, 300)
+  }
+
+  const continueTraining = async () => {
+    setCheckpoint({ metrics: { ...training?.metrics } })
+    try {
+      const data = await fetchJSON('/train/continue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ epochs: continueEpochs }),
+      })
+      if (data.error) {
+        setAiMessages(prev => [...prev, { role: 'system', text: `Cannot continue: ${data.error}` }])
+        setCheckpoint(null)
+        return
+      }
+      setStage(4)
+      subscribeSSE(d => askAI(
+        `Continuation training finished. New accuracy=${d.metrics.accuracy?.toFixed(4)}, f1=${d.metrics.f1?.toFixed(4)}, val_loss=${d.metrics.val_loss?.toFixed(4)}. Did scores improve compared to before?`
+      ))
+    } catch (e) {
+      setAiMessages(prev => [...prev, { role: 'system', text: `Continue error: ${e.message}` }])
+      setCheckpoint(null)
+    }
+  }
+
+  const revertTraining = async () => {
+    try {
+      const r = await fetch('/train/revert', { method: 'POST' })
+      const data = await r.json()
+      if (data.error) {
+        setAiMessages(prev => [...prev, { role: 'system', text: `Revert error: ${data.error}` }])
+        return
+      }
+      if (data.metrics) setTraining(prev => ({ ...prev, metrics: data.metrics, status: 'complete', active: false }))
+      setCheckpoint(null)
+      askAI('Reverted to previous checkpoint. The extra training did not improve scores enough to keep.')
+    } catch (e) {
+      setAiMessages(prev => [...prev, { role: 'system', text: `Revert error: ${e.message}` }])
+    }
+  }
+
   // ── Render ────────────────────────────────────────────────
   return (
     <div className="font-body text-on-surface min-h-screen bg-surface">
 
       {/* ═══ SIDEBAR ═══ */}
-      <aside className="fixed left-0 top-0 h-screen flex flex-col py-8 gap-2 bg-slate-50 border-r border-slate-200/50 w-64 z-50">
-        <div className="px-6 mb-6">
+      <aside className="fixed left-0 top-0 h-screen flex flex-col py-6 bg-slate-50 border-r border-slate-200/50 w-64 z-50">
+        <div className="px-6 mb-5">
           <h2 className="font-body text-xs font-black uppercase tracking-widest text-primary">PIPELINE</h2>
         </div>
-        <nav className="flex-1 flex flex-col gap-1">
+
+        <nav className="flex-1 flex flex-col gap-0.5 overflow-y-auto">
           {STAGES.map((s, i) => {
             const active = i === stage
             const done = completed.has(i)
             const locked = i > stage + 1 && !done
+            const NEEDS = [null, 'Scan first', 'Preview first', 'Preview first', 'Select target column', 'Run training first']
             return (
               <button key={s.id}
                 onClick={() => !locked && setStage(i)}
-                className={`flex items-center px-4 py-3 mx-2 rounded-md text-left transition-all duration-200 ${
+                className={`flex items-start px-4 py-2.5 mx-2 rounded-md text-left transition-all duration-200 group ${
                   active
                     ? 'bg-primary text-white shadow-sm'
                     : locked
                     ? 'text-slate-300 cursor-default'
-                    : 'text-slate-600 hover:translate-x-1 cursor-pointer'
+                    : done
+                    ? 'text-slate-500 hover:translate-x-0.5 cursor-pointer'
+                    : 'text-slate-600 hover:translate-x-0.5 cursor-pointer hover:bg-slate-100'
                 }`}
               >
-                <span className="material-symbols-outlined mr-3 text-xl">
-                  {done && !active ? 'check_circle' : s.icon}
+                <span className="material-symbols-outlined mr-3 text-xl flex-shrink-0 mt-0.5">
+                  {done && !active ? 'check_circle' : locked ? 'lock' : s.icon}
                 </span>
-                <span className="font-body text-sm font-medium uppercase tracking-widest">{s.label}</span>
+                <div className="min-w-0">
+                  <span className="font-body text-sm font-medium uppercase tracking-widest block">{s.label}</span>
+                  {locked && NEEDS[i] && (
+                    <span className="text-[10px] text-slate-300 font-label normal-case tracking-normal leading-tight block mt-0.5">
+                      Needs: {NEEDS[i]}
+                    </span>
+                  )}
+                  {done && !active && (
+                    <span className="text-[10px] text-tertiary-fixed-dim font-label normal-case tracking-normal leading-tight block mt-0.5">
+                      Complete
+                    </span>
+                  )}
+                </div>
               </button>
             )
           })}
         </nav>
-        <div className="px-6 pt-4 border-t border-slate-200/50">
-          <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-2">Progress</p>
-          <div className="h-1 bg-surface-container rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full transition-all duration-500"
-              style={{ width: `${(completed.size / STAGES.length) * 100}%` }} />
+
+        {/* ─── Initialize Engine CTA ─── */}
+        <div className="px-4 pt-4 border-t border-slate-200/50 space-y-2">
+          {(() => {
+            const isTabular = dataset?.type === 'tabular'
+            const hasTarget = !isTabular || !!trainConfig.target_column
+            const hasDataset = completed.has(0)
+            const canTrain = hasDataset && hasTarget
+            const hint = !hasDataset
+              ? 'Scan your dataset first'
+              : !hasTarget
+              ? 'Set a target column in Configure'
+              : null
+            return (
+              <>
+                {hint && (
+                  <p className="text-[10px] text-center font-label leading-tight px-2" style={{ color: '#b45309' }}>
+                    <span className="material-symbols-outlined text-[12px] align-middle mr-0.5">info</span>
+                    {hint}
+                  </p>
+                )}
+                {!hint && (
+                  <p className="text-[10px] text-center font-label leading-tight" style={{ color: '#005312' }}>
+                    <span className="material-symbols-outlined text-[12px] align-middle mr-0.5">check_circle</span>
+                    Ready to train
+                  </p>
+                )}
+                <button
+                  onClick={() => { completeStage(3); startTraining() }}
+                  disabled={!canTrain}
+                  className={`w-full py-3 rounded-xl font-headline font-bold text-sm flex items-center justify-center gap-2 transition-all ${
+                    canTrain
+                      ? 'bg-primary text-white shadow-lg hover:opacity-90 active:scale-95'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-base">play_arrow</span>
+                  START TRAINING
+                </button>
+              </>
+            )
+          })()}
+          <div className="pb-1">
+            <div className="flex justify-between text-[10px] text-on-surface-variant mb-1 font-label">
+              <span>Progress</span>
+              <span>{completed.size}/{STAGES.length}</span>
+            </div>
+            <div className="h-1 bg-surface-container rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${(completed.size / STAGES.length) * 100}%` }} />
+            </div>
           </div>
-          <p className="text-xs text-on-surface-variant mt-2">{completed.size}/{STAGES.length} stages</p>
         </div>
       </aside>
 
-      <div className="ml-64 min-h-screen flex flex-col">
+      <div className="ml-64 h-screen flex flex-col overflow-hidden">
 
         {/* ═══ HEADER ═══ */}
         <header className="sticky top-0 z-40 bg-slate-50 flex justify-between items-center w-full px-8 py-4 border-b border-slate-200/50">
@@ -690,7 +826,7 @@ export default function App() {
         </header>
 
         {/* ═══ MAIN WORKSPACE ═══ */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 min-h-0">
 
           {/* ── Center panel: stage content ─── */}
           <div className="flex-1 overflow-y-auto p-8 bg-surface">
@@ -757,6 +893,20 @@ export default function App() {
                       <p className="text-on-tertiary-container">→ Generates sample thumbnails (images only)</p>
                       <p className="text-error mt-2">✗ Never reads raw cell values or pixel data</p>
                       <p className="text-error">✗ Never uploads anything to any server</p>
+                    </div>
+
+                    {/* Guided next step */}
+                    <div className="border-t border-outline-variant/15 pt-4 flex items-center justify-between">
+                      <p className="text-xs text-on-surface-variant">
+                        {scanResult ? '✓ Dataset scanned successfully' : 'Enter your dataset path above'}
+                      </p>
+                      {scanResult && (
+                        <button onClick={goNext}
+                          className="px-4 py-2 bg-primary text-on-primary rounded-md text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all">
+                          Preview data
+                          <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -854,6 +1004,18 @@ export default function App() {
                       })}
                     </div>
                   )}
+
+                  {/* Guided next step */}
+                  <div className="border-t border-outline-variant/15 pt-4 flex items-center justify-between">
+                    <p className="text-xs text-on-surface-variant">
+                      Inspect your data, then continue to fix any quality issues.
+                    </p>
+                    <button onClick={goNext}
+                      className="px-4 py-2 bg-primary text-on-primary rounded-md text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all">
+                      Go to Cleanup
+                      <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -923,17 +1085,10 @@ export default function App() {
                       <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant mb-1">Configuration Engine</p>
                       <h2 className="font-headline text-4xl font-extrabold text-primary tracking-tighter">Calibrate Parameters</h2>
                     </div>
-                    <div className="flex gap-3">
-                      <button onClick={() => setTrainConfig({ epochs: 50, lr: 0.001, batch_size: 32, model_type: 'auto', target_column: '' })}
-                        className="px-5 py-2 bg-surface-container-high text-primary font-bold text-sm rounded-md hover:bg-surface-container-highest transition-colors">
-                        RESET DEFAULTS
-                      </button>
-                      <button onClick={() => { completeStage(3); startTraining() }}
-                        className="px-5 py-2 bg-primary text-on-primary font-bold text-sm rounded-md shadow-lg hover:opacity-90 transition-all flex items-center gap-2">
-                        <span className="material-symbols-outlined text-base">play_arrow</span>
-                        INITIALIZE ENGINE
-                      </button>
-                    </div>
+                    <button onClick={() => setTrainConfig({ epochs: 50, lr: 0.001, batch_size: 32, model_type: 'auto', target_column: '' })}
+                      className="px-5 py-2 bg-surface-container-high text-primary font-bold text-sm rounded-md hover:bg-surface-container-highest transition-colors">
+                      RESET DEFAULTS
+                    </button>
                   </div>
 
                   {/* 2×2 illustrated parameter cards */}
@@ -1326,6 +1481,78 @@ export default function App() {
                       />
                     </div>
                   )}
+
+                  {/* ── Refine model card ── */}
+                  <div className="bg-surface-container-low p-6 rounded-xl space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="material-symbols-outlined text-primary text-xl">model_training</span>
+                      <div>
+                        <h3 className="font-headline font-bold text-primary text-sm">Refine Your Model</h3>
+                        <p className="text-xs text-on-surface-variant">Train for more epochs to try improving scores</p>
+                      </div>
+                    </div>
+
+                    {/* Score delta — shown after a continuation run */}
+                    {checkpoint && (
+                      <div className="bg-surface rounded-lg border border-outline-variant/20 p-4 space-y-2">
+                        <p className="font-label text-[10px] uppercase tracking-widest text-on-surface-variant mb-1">Score change after continuation</p>
+                        {[
+                          { label: 'Accuracy', before: checkpoint.metrics.accuracy, after: training.metrics.accuracy, higherBetter: true, fmt: v => `${(v * 100).toFixed(1)}%` },
+                          { label: 'F1 Score', before: checkpoint.metrics.f1,       after: training.metrics.f1,       higherBetter: true, fmt: v => v?.toFixed(4) },
+                          { label: 'Val Loss', before: checkpoint.metrics.val_loss,  after: training.metrics.val_loss, higherBetter: false, fmt: v => v?.toFixed(4) },
+                        ].map(({ label, before, after, higherBetter, fmt }) => {
+                          if (before == null || after == null) return null
+                          const improved = higherBetter ? after > before : after < before
+                          const delta = after - before
+                          return (
+                            <div key={label} className="flex items-center justify-between text-xs">
+                              <span className="text-on-surface-variant">{label}</span>
+                              <span className="font-mono">
+                                <span className="text-on-surface-variant">{fmt(before)} → </span>
+                                <span className={`font-bold ${improved ? 'text-on-tertiary-fixed-variant' : 'text-error'}`}>
+                                  {fmt(after)}
+                                  <span className="font-normal ml-1 opacity-70">({delta >= 0 ? '+' : ''}{delta.toFixed(4)})</span>
+                                </span>
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Epoch picker + action buttons */}
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-xs text-on-surface-variant font-label">Additional epochs:</span>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => setContinueEpochs(e => Math.max(5, e - 5))}
+                          className="w-7 h-7 rounded-md bg-surface-container text-primary font-bold hover:bg-surface-container-high transition-colors flex items-center justify-center text-base">−</button>
+                        <span className="font-mono text-sm font-bold text-primary w-10 text-center">{continueEpochs}</span>
+                        <button onClick={() => setContinueEpochs(e => Math.min(500, e + 5))}
+                          className="w-7 h-7 rounded-md bg-surface-container text-primary font-bold hover:bg-surface-container-high transition-colors flex items-center justify-center text-base">+</button>
+                      </div>
+                      <div className="flex gap-2 ml-auto">
+                        {checkpoint && (
+                          <button onClick={revertTraining}
+                            className="px-4 py-2 rounded-md border-2 border-error text-error text-xs font-bold hover:bg-error-container/30 transition-colors flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-sm">undo</span>
+                            Revert
+                          </button>
+                        )}
+                        <button onClick={continueTraining}
+                          className="px-5 py-2 bg-primary text-on-primary text-xs font-bold rounded-md hover:opacity-90 transition-all flex items-center gap-1.5 shadow-md">
+                          <span className="material-symbols-outlined text-sm">play_arrow</span>
+                          Train {continueEpochs} more
+                        </button>
+                      </div>
+                    </div>
+
+                    {checkpoint && (
+                      <p className="text-[11px] text-on-surface-variant flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[13px]">history</span>
+                        Checkpoint saved — revert if scores got worse
+                      </p>
+                    )}
+                  </div>
 
                   <AskChips questions={[
                     'Are these results good enough to use with real patients?',

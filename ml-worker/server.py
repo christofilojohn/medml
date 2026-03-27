@@ -80,6 +80,9 @@ training_state = {
     "stop_requested": False,
     "model_path": None,       # path to saved .pt file
     "model_meta_path": None,  # path to saved metadata JSON
+    "checkpoint_path": None,      # backup copy before a continue run
+    "checkpoint_meta_path": None,
+    "checkpoint_metrics": None,   # metrics snapshot at checkpoint time
 }
 
 # Global dataset info
@@ -694,6 +697,15 @@ def _train_tabular(config):
 
     add_log(f"Model: MLP ({sum(p.numel() for p in model.parameters())} params)")
 
+    # Resume from checkpoint if continuing
+    resume_path = config.get("_resume_from")
+    if resume_path and Path(resume_path).exists():
+        try:
+            model.load_state_dict(torch.load(resume_path, map_location=device))
+            add_log(f"Resumed weights from checkpoint")
+        except Exception as e:
+            add_log(f"Could not load checkpoint weights ({e}) — starting fresh", "warn")
+
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=config["lr"])
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=5, factor=0.5)
@@ -889,6 +901,101 @@ def stop_training():
     with state_lock:
         training_state["stop_requested"] = True
     return jsonify({"status": "stop_requested"})
+
+
+@app.route("/train/continue", methods=["POST"])
+def continue_training():
+    """
+    Continue training the current model for additional epochs.
+    Saves a checkpoint first so the user can revert if scores don't improve.
+    Body: { "epochs": 20 }
+    """
+    import shutil
+    try:
+        if training_state["active"]:
+            return jsonify({"error": "Training already in progress"}), 409
+
+        model_path = training_state.get("model_path")
+        meta_path = training_state.get("model_meta_path")
+
+        if not model_path or not Path(str(model_path)).exists():
+            return jsonify({"error": "No trained model file found. The initial training may have used simulated mode — retrain with a real dataset first."}), 400
+        if not meta_path or not Path(str(meta_path)).exists():
+            return jsonify({"error": "Model metadata file missing — cannot continue."}), 400
+
+        body = request.json or {}
+        additional_epochs = max(1, int(body.get("epochs", 20)))
+
+        # Snapshot current metrics BEFORE anything changes
+        with state_lock:
+            snapshot_metrics = dict(training_state.get("metrics") or {})
+
+        # Save current model files as revert checkpoint
+        ts = time.strftime("%Y%m%d_%H%M%S")
+        ckpt_path = MODELS_DIR / f"checkpoint_{ts}.pt"
+        ckpt_meta_path = MODELS_DIR / f"checkpoint_{ts}_meta.json"
+        shutil.copy2(model_path, ckpt_path)
+        shutil.copy2(meta_path, ckpt_meta_path)
+
+        with state_lock:
+            training_state["checkpoint_path"] = str(ckpt_path)
+            training_state["checkpoint_meta_path"] = str(ckpt_meta_path)
+            training_state["checkpoint_metrics"] = snapshot_metrics
+
+        # Rebuild config from saved metadata
+        with open(meta_path) as f:
+            meta = json.load(f)
+
+        config = dict(meta.get("config", {}))
+        config["epochs"] = additional_epochs
+        config["_resume_from"] = str(model_path)
+
+        thread = threading.Thread(target=_training_loop, args=(config,), daemon=True)
+        thread.start()
+
+        return jsonify({
+            "status": "continuing",
+            "additional_epochs": additional_epochs,
+            "checkpoint_metrics": snapshot_metrics,
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": f"Continue failed: {str(e)}"}), 500
+
+
+@app.route("/train/revert", methods=["POST"])
+def revert_checkpoint():
+    """
+    Restore the model to the checkpoint saved before the last continue run.
+    """
+    import shutil
+
+    if training_state["active"]:
+        return jsonify({"error": "Training in progress — stop it first"}), 409
+
+    ckpt_path = training_state.get("checkpoint_path")
+    ckpt_meta_path = training_state.get("checkpoint_meta_path")
+    ckpt_metrics = training_state.get("checkpoint_metrics")
+
+    if not ckpt_path or not Path(ckpt_path).exists():
+        return jsonify({"error": "No checkpoint to revert to"}), 400
+
+    current_model = training_state.get("model_path")
+    current_meta = training_state.get("model_meta_path")
+
+    if current_model:
+        shutil.copy2(ckpt_path, current_model)
+    if current_meta and ckpt_meta_path and Path(ckpt_meta_path).exists():
+        shutil.copy2(ckpt_meta_path, current_meta)
+
+    with state_lock:
+        training_state["metrics"] = ckpt_metrics or {}
+        training_state["checkpoint_path"] = None
+        training_state["checkpoint_meta_path"] = None
+        training_state["checkpoint_metrics"] = None
+
+    return jsonify({"status": "reverted", "metrics": ckpt_metrics})
 
 
 @app.route("/train/history")
