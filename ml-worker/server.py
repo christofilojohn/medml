@@ -761,7 +761,7 @@ def _train_tabular(config):
     meta = {
         "saved_at": ts,
         "feature_columns": numeric_cols,
-        "label_classes": list(le.classes_),
+        "label_classes": le.classes_.tolist(),
         "n_features": n_features,
         "num_classes": num_classes,
         "scaler_mean": scaler.mean_.tolist(),
